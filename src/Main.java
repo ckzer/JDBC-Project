@@ -116,25 +116,25 @@ public class Main extends JFrame {
 
         // 선택한 검색 항목에 따라 표시할 컬럼을 설정
         ArrayList<String> selectedColumns = new ArrayList<>();
-        if (nameBox.isSelected()) selectedColumns.add("CONCAT(e.Fname, ' ', e.Minit, ' ', e.Lname) AS Name");
-        if (ssnBox.isSelected()) selectedColumns.add("e.Ssn");
-        if (bdateBox.isSelected()) selectedColumns.add("e.Bdate");
-        if (addressBox.isSelected()) selectedColumns.add("e.Address");
-        if (sexBox.isSelected()) selectedColumns.add("e.Sex");
-        if (salaryBox.isSelected()) selectedColumns.add("e.Salary");
-        if (supervisorBox.isSelected()) selectedColumns.add("CONCAT(s.Fname, ' ', s.Minit, ' ', s.Lname) AS Supervisor");
-        if (departmentBox.isSelected()) selectedColumns.add("d.Dname AS Department");
+        if (nameBox.isSelected()) selectedColumns.add("CONCAT(e.Fname, ' ', e.Minit, ' ', e.Lname) AS NAME");
+        if (ssnBox.isSelected()) selectedColumns.add("e.Ssn AS SSN");
+        if (bdateBox.isSelected()) selectedColumns.add("e.Bdate AS BDATE");
+        if (addressBox.isSelected()) selectedColumns.add("e.Address AS ADDRESS");
+        if (sexBox.isSelected()) selectedColumns.add("e.Sex AS SEX");
+        if (salaryBox.isSelected()) selectedColumns.add("e.Salary AS SALARY");
+        if (supervisorBox.isSelected()) selectedColumns.add("CONCAT(s.Fname, ' ', s.Minit, ' ', s.Lname) AS SUPERVISOR");
+        if (departmentBox.isSelected()) selectedColumns.add("d.Dname AS DEPARTMENT");
 
         // 선택한 항목이 없으면 기본으로 모든 항목을 추가
         if (selectedColumns.isEmpty()) {
-            selectedColumns.add("CONCAT(e.Fname, ' ', e.Minit, ' ', e.Lname) AS Name");
-            selectedColumns.add("e.Ssn");
-            selectedColumns.add("e.Bdate");
-            selectedColumns.add("e.Address");
-            selectedColumns.add("e.Sex");
-            selectedColumns.add("e.Salary");
-            selectedColumns.add("CONCAT(s.Fname, ' ', s.Minit, ' ', s.Lname) AS Supervisor");
-            selectedColumns.add("d.Dname AS Department");
+            selectedColumns.add("CONCAT(e.Fname, ' ', e.Minit, ' ', e.Lname) AS NAME");
+            selectedColumns.add("e.Ssn AS SSN");
+            selectedColumns.add("e.Bdate AS BDATE");
+            selectedColumns.add("e.Address AS ADDRESS");
+            selectedColumns.add("e.Sex AS SEX");
+            selectedColumns.add("e.Salary AS SALARY");
+            selectedColumns.add("CONCAT(s.Fname, ' ', s.Minit, ' ', s.Lname) AS SUPERVISOR");
+            selectedColumns.add("d.Dname AS DEPARTMENT");
         }
 
         // 선택 항목 기반 SQL 쿼리 생성
