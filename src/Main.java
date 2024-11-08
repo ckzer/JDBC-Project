@@ -9,7 +9,10 @@ public class Main extends JFrame {
     private DBManage dbManage; // DB와 연결 & 데이터 가져옴
     private JTable employeeTable; // 직원 정보 테이블, 데이터 저장
     private DefaultTableModel model;
-    private JComboBox<String> searchRangeBox; // 검색 범위 및 항목 설정하는 드롭다운&체크박스
+    private JComboBox searchRangeBox; // 검색 범위 및 항목 설정하는 드롭다운&체크박스
+    private JComboBox<String> deptComboBox; // 부서 선택 콤보박스
+    private JComboBox<String> genderComboBox; // 성별 선택 콤보박스
+    private JTextField searchValueField; // 연봉 입력 필드
     private JCheckBox nameBox, ssnBox, bdateBox, addressBox, sexBox, salaryBox, supervisorBox, departmentBox;
     private JLabel selectedCountLabel; // 선택된 직원수 표시
 
@@ -28,9 +31,33 @@ public class Main extends JFrame {
         searchRangeBox = new JComboBox<>(new String[]{"전체", "부서", "성별", "연봉"});
         searchRangePanel.add(searchRangeBox);
 
+        // 부서 선택 콤보박스
+        deptComboBox = new JComboBox<>(new String[]{"Research", "Administration", "Headquarters"});
+        deptComboBox.setVisible(false);
+        searchRangePanel.add(deptComboBox);
+
+        // 성별 선택 콤보박스
+        genderComboBox = new JComboBox<>(new String[]{"F", "M"});
+        genderComboBox.setVisible(false);
+        searchRangePanel.add(genderComboBox);
+
+        // 연봉 입력 필드
+        searchValueField = new JTextField(10);
+        searchValueField.setVisible(false);
+        searchRangePanel.add(searchValueField);
+
+        // 검색 범위 변경 이벤트 리스너
+        searchRangeBox.addActionListener(e -> {
+            String selectedType = (String) searchRangeBox.getSelectedItem();
+            deptComboBox.setVisible(selectedType.equals("부서"));
+            genderComboBox.setVisible(selectedType.equals("성별"));
+            searchValueField.setVisible(selectedType.equals("연봉"));
+        });
+
         // 검색 항목 설정
         JPanel searchAttributesPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         searchAttributesPanel.add(new JLabel("검색 항목"));
+
         // 각각의 JCheckBox 초기화
         nameBox = new JCheckBox("Name");
         ssnBox = new JCheckBox("SSN");
@@ -53,26 +80,24 @@ public class Main extends JFrame {
 
         // 검색 버튼을 패널에 추가
         JButton searchButton = new JButton("검색");
-        //loadEmployeeData() 메서드를 호출하여 테이블에 직원 데이터를 불러옴
         searchButton.addActionListener(e -> loadEmployeeData());
         searchAttributesPanel.add(searchButton);
 
         // 상단 패널에 검색 범위와 검색 항목 패널을 추가
         JPanel topPanel = new JPanel();
-        // 수직으로 패널들을 쌓아 BorderLayout.NORTH 위치에 배치
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
         topPanel.add(searchRangePanel);
         topPanel.add(searchAttributesPanel);
         add(topPanel, BorderLayout.NORTH);
 
         // 테이블 및 스크롤 패널을 센터에 추가
-        model = new DefaultTableModel();
-        employeeTable = new JTable(model) {
+        model = new DefaultTableModel() {
+            @Override
             public Class<?> getColumnClass(int column) {
                 return column == 0 ? Boolean.class : String.class;
             }
         };
-        // JScrollPane 추가해 테이블에 스크롤 기능을 제공
+        employeeTable = new JTable(model);
         JScrollPane scrollPane = new JScrollPane(employeeTable);
         add(scrollPane, BorderLayout.CENTER);
 
@@ -82,10 +107,9 @@ public class Main extends JFrame {
         countPanel.add(selectedCountLabel);
 
         // 수정 및 삭제 기능 패널
-        // updatePanel 생성하여 필드 선택, 수정 값 입력, 수정 버튼 추가
         JPanel updatePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         updatePanel.add(new JLabel("수정:"));
-        JComboBox<String> updateFieldBox = new JComboBox<>(new String[]{"Name", "SSN", "Bdate", "Address", "Sex", "Salary", "Supervisor", "Department"});
+        JComboBox updateFieldBox = new JComboBox<>(new String[]{"Name", "SSN", "Bdate", "Address", "Sex", "Salary", "Supervisor", "Department"});
         JTextField updateValueField = new JTextField(10);
         JButton updateButton = new JButton("UPDATE");
         updatePanel.add(updateFieldBox);
@@ -93,7 +117,6 @@ public class Main extends JFrame {
         updatePanel.add(updateButton);
 
         // 삭제 버튼 패널
-        // "선택한 데이터 삭제" 버튼을 deletePanel에 추가
         JPanel deletePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton deleteButton = new JButton("선택한 데이터 삭제");
         deletePanel.add(deleteButton);
@@ -137,45 +160,72 @@ public class Main extends JFrame {
             selectedColumns.add("d.Dname AS DEPARTMENT");
         }
 
-        // 선택 항목 기반 SQL 쿼리 생성
-        String query = "SELECT " + String.join(", ", selectedColumns) +
-                " FROM EMPLOYEE e " +
-                "JOIN DEPARTMENT d ON e.Dno = d.Dnumber " +
-                "LEFT JOIN EMPLOYEE s ON e.Super_ssn = s.Ssn";
+        // 쿼리 생성
+        StringBuilder queryBuilder = new StringBuilder();
+        queryBuilder.append("SELECT ").append(String.join(", ", selectedColumns))
+                .append(" FROM EMPLOYEE e ")
+                .append("JOIN DEPARTMENT d ON e.Dno = d.Dnumber ")
+                .append("LEFT JOIN EMPLOYEE s ON e.Super_ssn = s.Ssn");
+
+        // 검색 조건 추가
+        String searchType = (String) searchRangeBox.getSelectedItem();
+        if (!searchType.equals("전체")) {
+            queryBuilder.append(" WHERE ");
+            switch(searchType) {
+                case "부서":
+                    queryBuilder.append("d.Dname = '").append(deptComboBox.getSelectedItem()).append("'");
+                    break;
+                case "성별":
+                    queryBuilder.append("e.Sex = '").append(genderComboBox.getSelectedItem()).append("'");
+                    break;
+                case "연봉":
+                    String salaryValue = searchValueField.getText().trim();
+                    if (!salaryValue.isEmpty()) {
+                        if (salaryValue.matches("\\d+(\\.\\d+)?")) {
+                            queryBuilder.append("e.Salary >= ").append(salaryValue);
+                        } else {
+                            JOptionPane.showMessageDialog(this, "연봉은 숫자만 입력 가능합니다.");
+                            return;
+                        }
+                    }
+                    break;
+            }
+        }
 
         // 테이블 모델에 데이터 설정
         ArrayList<String> columnNames = new ArrayList<>();
-        columnNames.add("선택"); // 선택 컬럼을 체크박스로 설정
+        columnNames.add("선택");
         for (String column : selectedColumns) {
             if (column.contains(" AS ")) {
-                columnNames.add(column.split(" AS ")[1]);  // 별칭 사용
+                columnNames.add(column.split(" AS ")[1]);
             } else {
-                columnNames.add(column);  // 별칭 없는 경우 원래 컬럼명 사용
+                columnNames.add(column);
             }
         }
         model.setColumnIdentifiers(columnNames.toArray(new String[0]));
 
         // DB에서 결과를 가져와 테이블에 표시
         try {
-            ResultSet rs = dbManage.executeCustomQuery(query);
+            ResultSet rs = dbManage.executeCustomQuery(queryBuilder.toString());
             while (rs.next()) {
                 ArrayList<Object> rowData = new ArrayList<>();
-                rowData.add(false); // 첫 번째 컬럼에 Boolean 값을 설정하여 체크박스로 표시
+                rowData.add(false);
                 for (int i = 1; i < columnNames.size(); i++) {
-                    rowData.add(rs.getObject(columnNames.get(i)));  // DB의 실제 컬럼명만 가져옴
+                    rowData.add(rs.getObject(columnNames.get(i)));
                 }
                 model.addRow(rowData.toArray());
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
+
+        updateSelectedCount();
     }
-    // 선택된 직원 수 업데이트
+
     private void addRowSelectionListener() {
         model.addTableModelListener(e -> updateSelectedCount());
     }
 
-    // 테이블 변경 시 updateSelectedCount() 호출
     private void updateSelectedCount() {
         int selectedCount = 0;
         for (int i = 0; i < model.getRowCount(); i++) {
@@ -186,7 +236,6 @@ public class Main extends JFrame {
         selectedCountLabel.setText("선택한 직원: " + selectedCount + "명");
     }
 
-    // 메인 메서드
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new Main().setVisible(true));
     }
