@@ -4,6 +4,8 @@ import java.awt.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.List;
+
 
 public class Main extends JFrame {
     private DBManage dbManage; // DB와 연결 & 데이터 가져옴
@@ -121,6 +123,30 @@ public class Main extends JFrame {
         JButton deleteButton = new JButton("선택한 데이터 삭제");
         deletePanel.add(deleteButton);
 
+        deleteButton.addActionListener(e -> {
+            List<String> selectedSSNs = new ArrayList<>(); // java.util.List 사용
+            for (int i = 0; i < employeeTable.getRowCount(); i++) {
+                Boolean isChecked = (Boolean) employeeTable.getValueAt(i, 0); // 체크박스 열이 0번째 열
+                if (isChecked != null && isChecked) {
+                    String ssn = (String) employeeTable.getValueAt(i, employeeTable.getColumnModel().getColumnIndex("SSN")); // SSN 열 인덱스를 정확히 가져옴
+                    System.out.println("Selected for deletion, SSN: " + ssn);
+                    selectedSSNs.add(ssn);
+                }
+            }
+            if (!selectedSSNs.isEmpty()) {
+                String result = dbManage.deleteEmployees(selectedSSNs);
+                if (result.equals("삭제할 수 없는 직원입니다")) {
+                    JOptionPane.showMessageDialog(null, result, "경고", JOptionPane.WARNING_MESSAGE);
+                } else if (result.equals("삭제 완료")) {
+                    loadEmployeeData(); // 체크박스 상태에 따라 테이블 다시 조회
+                } else {
+                    JOptionPane.showMessageDialog(null, result, "오류", JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(null, "삭제할 직원이 선택되지 않았습니다.");
+            }
+        });
+
         // 하단 패널에 추가
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.add(countPanel, BorderLayout.WEST);
@@ -235,6 +261,7 @@ public class Main extends JFrame {
         }
         selectedCountLabel.setText("선택한 직원: " + selectedCount + "명");
     }
+
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new Main().setVisible(true));

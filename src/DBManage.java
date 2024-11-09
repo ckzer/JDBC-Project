@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.List;
 
 public class DBManage {
     private static final String url = "jdbc:mysql://localhost:3306/mydb?serverTimeZone=UTC";
@@ -84,9 +85,59 @@ public class DBManage {
 
 
     // 사용자가 선택한 직원(들)을 삭제하는 메서드
-    public ResultSet deleteEmployees() {
-        String query = "";
-        return executeCustomQuery(query);
+    public String deleteEmployees(List<String> ssnList) {
+        String deleteWorksOnQuery = "DELETE FROM WORKS_ON WHERE Essn = ?"; // 일한 시간 정보를 먼저 제거
+        String deleteDependentQuery = "DELETE FROM DEPENDENT WHERE Essn = ?"; // 가족 정보를 먼저 제거
+        String deleteQuery = "DELETE FROM EMPLOYEE WHERE Ssn = ?"; // 직원을 제거
+        String updateSuperSsnQuery = "UPDATE EMPLOYEE SET Super_ssn = NULL WHERE Super_ssn = ?"; // 직원의 상사를 수정
+        String updateDepartmentMgrQuery = "UPDATE DEPARTMENT SET Mgr_ssn = '888665555' WHERE Mgr_ssn = ?"; // 부서의 관리자인 경우를 고려
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // 트랜잭션 시작
+
+            try (PreparedStatement deleteWorksOnPstmt = conn.prepareStatement(deleteWorksOnQuery);
+                 PreparedStatement deleteDependentPstmt = conn.prepareStatement(deleteDependentQuery);
+                 PreparedStatement deletePstmt = conn.prepareStatement(deleteQuery);
+                 PreparedStatement updatePstmt = conn.prepareStatement(updateSuperSsnQuery);
+                 PreparedStatement updateDeptMgrPstmt = conn.prepareStatement(updateDepartmentMgrQuery)) {
+
+                for (String ssn : ssnList) {
+
+                    if (ssn.equals("888665555")) {
+                        return "삭제할 수 없는 직원입니다.";
+                    }
+
+                    System.out.println("Attempting to delete employee with SSN: " + ssn);
+                    // 일한 시간 데이터를 삭제
+                    deleteWorksOnPstmt.setString(1, ssn);
+                    deleteWorksOnPstmt.executeUpdate();
+                    // 가족관계 정보 데이터를 삭제
+                    deleteDependentPstmt.setString(1, ssn);
+                    deleteDependentPstmt.executeUpdate();
+                    // 부서의 Mgr_ssn을 NULL로 변경
+                    updateDeptMgrPstmt.setString(1, ssn);
+                    updateDeptMgrPstmt.executeUpdate();
+                    // Super_ssn을 NULL로 변경
+                    updatePstmt.setString(1, ssn);
+                    updatePstmt.executeUpdate();
+                    // 직원 데이터를 삭제
+                    deletePstmt.setString(1, ssn);
+                    deletePstmt.addBatch();
+                }
+
+                deletePstmt.executeBatch();
+                conn.commit(); // 트랜잭션 커밋
+                System.out.println("Selected employees deleted successfully.");
+                return "삭제 완료";
+            } catch (SQLException e) {
+                conn.rollback(); // 오류 발생 시 롤백
+                e.printStackTrace();
+                return "삭제 중 오류가 발생했습니다.";
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "데이터베이스 연결 오류가 발생했습니다.";
+        }
     }
 
 
