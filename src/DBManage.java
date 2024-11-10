@@ -86,6 +86,10 @@ public class DBManage {
 
     // 사용자가 선택한 직원(들)을 삭제하는 메서드
     public String deleteEmployees(List<String> ssnList) {
+        // SSN 체크박스에 체크가 되어있어야만 SSN리스트를 전달받아 삭제가 가능하다.
+        if (ssnList == null || ssnList.isEmpty()) {
+            return "SSN 검색 조건 활성화가 필요합니다.";
+        }
         String deleteWorksOnQuery = "DELETE FROM WORKS_ON WHERE Essn = ?"; // 일한 시간 정보를 먼저 제거
         String deleteDependentQuery = "DELETE FROM DEPENDENT WHERE Essn = ?"; // 가족 정보를 먼저 제거
         String deleteQuery = "DELETE FROM EMPLOYEE WHERE Ssn = ?"; // 직원을 제거
