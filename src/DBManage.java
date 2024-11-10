@@ -83,7 +83,6 @@ public class DBManage {
         return executeCustomQuery(query);
     }
 
-
     // 사용자가 선택한 직원(들)을 삭제하는 메서드
     public String deleteEmployees(List<String> ssnList) {
         // SSN 체크박스에 체크가 되어있어야만 SSN리스트를 전달받아 삭제가 가능하다.

@@ -6,7 +6,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class Main extends JFrame {
     private DBManage dbManage; // DB와 연결 & 데이터 가져옴
     private JTable employeeTable; // 직원 정보 테이블, 데이터 저장
@@ -123,6 +122,7 @@ public class Main extends JFrame {
         JButton deleteButton = new JButton("선택한 데이터 삭제");
         deletePanel.add(deleteButton);
 
+
         deleteButton.addActionListener(e -> {
             List<String> selectedSSNs = new ArrayList<>(); // java.util.List 사용
             for (int i = 0; i < employeeTable.getRowCount(); i++) {
@@ -146,6 +146,7 @@ public class Main extends JFrame {
                 JOptionPane.showMessageDialog(null, "삭제할 직원이 선택되지 않았습니다.");
             }
         });
+
 
         // 하단 패널에 추가
         JPanel bottomPanel = new JPanel(new BorderLayout());
@@ -261,7 +262,6 @@ public class Main extends JFrame {
         }
         selectedCountLabel.setText("선택한 직원: " + selectedCount + "명");
     }
-
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new Main().setVisible(true));
