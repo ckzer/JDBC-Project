@@ -33,7 +33,7 @@ public class DBManage {
         return executeCustomQuery(query);
     }
 
-    
+
     // 조건 검색을 위한 메서드 추가
     public ResultSet searchEmployeesByCondition(String searchType, String searchValue, ArrayList<String> selectedColumns) {
         StringBuilder queryBuilder = new StringBuilder();
@@ -44,7 +44,7 @@ public class DBManage {
 
         if (!searchType.equals("전체") && !searchValue.isEmpty()) {
             queryBuilder.append("WHERE ");
-            switch(searchType) {
+            switch (searchType) {
                 case "부서":
                     queryBuilder.append("d.Dname = ?");
                     break;
@@ -157,13 +157,13 @@ public class DBManage {
         }
         return rs;
     }
-    
-    
+
+
     // 직원 추가
     public boolean addEmployee(String fname, String minit, String lname, String ssn, String bdate, String address,
                                String sex, double salary, String superSsn, int dno) {
         String query = "INSERT INTO EMPLOYEE (Fname, Minit, Lname, Ssn, Bdate, Address, Sex, Salary, Super_ssn, Dno) " +
-                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setString(1, fname);
@@ -184,5 +184,85 @@ public class DBManage {
             return false;
         }
     }
-    
+
+    // Works_On 테이블 데이터를 List<Object[]> 형식으로 반환하는 메서드
+    public List<Object[]> getWorksOnData() {
+        List<Object[]> worksOnData = new ArrayList<>();
+        String query = "SELECT Essn, Pno, Hours FROM WORKS_ON";
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (!rs.isBeforeFirst()) {  // ResultSet이 비어있는지 확인
+                System.out.println("No data found in Works_On table.");
+            } else {
+                while (rs.next()) {
+                    Object[] rowData = new Object[3];
+                    rowData[0] = rs.getString("Essn");
+                    rowData[1] = rs.getString("Pno");
+                    rowData[2] = rs.getString("Hours");
+                    worksOnData.add(rowData);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return worksOnData;
+    }
+
+
+    // DEPENDENT 테이블 데이터를 List<Object[]> 형식으로 반환하는 메서드
+    public List<Object[]> getDependentData() {
+        List<Object[]> worksOnData = new ArrayList<>();
+        String query = "SELECT D.Essn, E.Fname, D.Dependent_name, D.Sex, D.Bdate, D.Relationship FROM DEPENDENT D, EMPLOYEE E WHERE D.Essn = E.Ssn";
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (!rs.isBeforeFirst()) {  // ResultSet이 비어있는지 확인
+                System.out.println("No data found in Works_On table.");
+            } else {
+                while (rs.next()) {
+                    Object[] rowData = new Object[6];
+                    rowData[0] = rs.getString("D.Essn");
+                    rowData[1] = rs.getString("E.Fname");
+                    rowData[2] = rs.getString("D.Dependent_name");
+                    rowData[3] = rs.getString("D.Sex");
+                    rowData[4] = rs.getString("D.Bdate");
+                    rowData[5] = rs.getString("D.Relationship");
+                    worksOnData.add(rowData);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return worksOnData;
+    }
+
+
+    // Works_On 테이블 데이터를 List<Object[]> 형식으로 반환하는 메서드
+    public List<Object[]> getProjectData() {
+        List<Object[]> worksOnData = new ArrayList<>();
+        String query = "SELECT Pname, Pnumber, Plocation, Dname FROM PROJECT, DEPARTMENT WHERE Dnumber = Dnum";
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (!rs.isBeforeFirst()) {  // ResultSet이 비어있는지 확인
+                System.out.println("No data found in Works_On table.");
+            } else {
+                while (rs.next()) {
+                    Object[] rowData = new Object[4];
+                    rowData[0] = rs.getString("Pname");
+                    rowData[1] = rs.getString("Pnumber");
+                    rowData[2] = rs.getString("Plocation");
+                    rowData[3] = rs.getString("Dname");
+                    worksOnData.add(rowData);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return worksOnData;
+    }
 }

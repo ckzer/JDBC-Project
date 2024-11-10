@@ -59,6 +59,20 @@ public class Main extends JFrame {
         JPanel searchAttributesPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         searchAttributesPanel.add(new JLabel("검색 항목"));
 
+        // goomin_add
+        JButton worksOnButton = new JButton("근무시간 조회");
+        JButton dependentButton = new JButton("가족 정보 조회");
+        JButton projectButton = new JButton("프로젝트 조회");
+
+        // 버튼 클릭 이벤트 설정
+        worksOnButton.addActionListener(e -> displayWorksOnData());
+        dependentButton.addActionListener(e -> displayDependentData());
+        projectButton.addActionListener(e -> displayProjectData());
+
+        searchRangePanel.add(worksOnButton);
+        searchRangePanel.add(dependentButton);
+        searchRangePanel.add(projectButton);
+
         // 각각의 JCheckBox 초기화
         nameBox = new JCheckBox("Name");
         ssnBox = new JCheckBox("SSN");
@@ -121,7 +135,7 @@ public class Main extends JFrame {
         JPanel deletePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton deleteButton = new JButton("선택한 데이터 삭제");
         deletePanel.add(deleteButton);
-        
+
         // 직원 추가 버튼
         JButton addEmployeeButton = new JButton("직원 추가");
         addEmployeeButton.addActionListener(e -> showAddEmployeeDialog());
@@ -162,7 +176,7 @@ public class Main extends JFrame {
 
         // 직원 정보 로드
         loadEmployeeData();
-        addRowSelectionListener();        
+        addRowSelectionListener();
     }
 
     // 직원 정보 로드 메서드
@@ -268,6 +282,63 @@ public class Main extends JFrame {
         selectedCountLabel.setText("선택한 직원: " + selectedCount + "명");
     }
 
+    // Works_On 테이블 데이터 표시 메서드
+    private void displayWorksOnData() {
+        model.setRowCount(0); // 테이블 초기화
+        String[] columns = {"선택", "Essn", "Pno", "Hours"};
+        model.setColumnIdentifiers(columns); // 컬럼 이름 설정
+
+        List<Object[]> worksOnData = dbManage.getWorksOnData(); // DB에서 데이터 가져오기
+        if (worksOnData.isEmpty()) {
+            System.out.println("No data to display in the UI for Works_On table.");
+        } else {
+            for (Object[] rowData : worksOnData) {
+                Object[] tableRow = new Object[columns.length];
+                tableRow[0] = false; // 체크박스 기본값 false
+                System.arraycopy(rowData, 0, tableRow, 1, rowData.length);
+                model.addRow(tableRow);
+            }
+        }
+    }
+
+    // Dependent 테이블 데이터 표시 메서드
+    private void displayDependentData() {
+        model.setRowCount(0); // 테이블 초기화
+        String[] columns = {"선택", "Essn", "Fname", "Dependent_name", "Sex", "Bdate", "Relationship"};
+        model.setColumnIdentifiers(columns); // 컬럼 이름 설정
+
+        List<Object[]> dependentData = dbManage.getDependentData(); // DB에서 데이터 가져오기
+        if (dependentData.isEmpty()) {
+            System.out.println("No data to display in the UI for Works_On table.");
+        } else {
+            for (Object[] rowData : dependentData) {
+                Object[] tableRow = new Object[columns.length];
+                tableRow[0] = false; // 체크박스 기본값 false
+                System.arraycopy(rowData, 0, tableRow, 1, rowData.length);
+                model.addRow(tableRow);
+            }
+        }
+    }
+
+    // Project 테이블 데이터 표시 메서드
+    private void displayProjectData() {
+        model.setRowCount(0); // 테이블 초기화
+        String[] columns = {"선택", "Pname", "Pnumber", "Plocation", "Dname"};
+        model.setColumnIdentifiers(columns); // 컬럼 이름 설정
+
+        List<Object[]> projectData = dbManage.getProjectData(); // DB에서 데이터 가져오기
+        if (projectData.isEmpty()) {
+            System.out.println("No data to display in the UI for Works_On table.");
+        } else {
+            for (Object[] rowData : projectData) {
+                Object[] tableRow = new Object[columns.length];
+                tableRow[0] = false; // 체크박스 기본값 false
+                System.arraycopy(rowData, 0, tableRow, 1, rowData.length);
+                model.addRow(tableRow);
+            }
+        }
+    }
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new Main().setVisible(true));
     }
@@ -353,6 +424,6 @@ public class Main extends JFrame {
         });
 
         dialog.setLocationRelativeTo(this);
-        dialog.setVisible(true);        
+        dialog.setVisible(true);
     }
 }
