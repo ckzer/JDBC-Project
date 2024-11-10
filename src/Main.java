@@ -121,6 +121,11 @@ public class Main extends JFrame {
         JPanel deletePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton deleteButton = new JButton("선택한 데이터 삭제");
         deletePanel.add(deleteButton);
+        
+        // 직원 추가 버튼
+        JButton addEmployeeButton = new JButton("직원 추가");
+        addEmployeeButton.addActionListener(e -> showAddEmployeeDialog());
+        deletePanel.add(addEmployeeButton, 0);
 
 
         deleteButton.addActionListener(e -> {
@@ -157,7 +162,7 @@ public class Main extends JFrame {
 
         // 직원 정보 로드
         loadEmployeeData();
-        addRowSelectionListener();
+        addRowSelectionListener();        
     }
 
     // 직원 정보 로드 메서드
@@ -265,5 +270,89 @@ public class Main extends JFrame {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new Main().setVisible(true));
+    }
+
+    // 직원 추가
+    private void showAddEmployeeDialog() {
+        JDialog dialog = new JDialog(this, "직원 추가", true);
+        dialog.setSize(400, 500);
+        dialog.setLayout(new GridLayout(11, 2, 5, 5));
+
+        // 입력 필드 생성
+        JTextField fnameField = new JTextField();
+        JTextField minitField = new JTextField();
+        JTextField lnameField = new JTextField();
+        JTextField ssnField = new JTextField();
+        JTextField bdateField = new JTextField();
+        JTextField addressField = new JTextField();
+        JComboBox<String> sexCombo = new JComboBox<>(new String[]{"F", "M"});
+        JTextField salaryField = new JTextField();
+        JTextField superSsnField = new JTextField();
+        JTextField dnoField = new JTextField();
+
+        // 필드 추가
+        dialog.add(new JLabel("First Name:"));
+        dialog.add(fnameField);
+        dialog.add(new JLabel("Middle Init.:"));
+        dialog.add(minitField);
+        dialog.add(new JLabel("Last Name:"));
+        dialog.add(lnameField);
+        dialog.add(new JLabel("Ssn:"));
+        dialog.add(ssnField);
+        dialog.add(new JLabel("Birthdate:"));
+        dialog.add(bdateField);
+        dialog.add(new JLabel("Address:"));
+        dialog.add(addressField);
+        dialog.add(new JLabel("Sex:"));
+        dialog.add(sexCombo);
+        dialog.add(new JLabel("Salary:"));
+        dialog.add(salaryField);
+        dialog.add(new JLabel("Super_ssn:"));
+        dialog.add(superSsnField);
+        dialog.add(new JLabel("Dno:"));
+        dialog.add(dnoField);
+
+        JButton addButton = new JButton("정보 추가하기");
+        dialog.add(addButton);
+
+        // "정보 추가하기" 버튼 동작
+        addButton.addActionListener(e -> {
+            String fname = fnameField.getText();
+            String minit = minitField.getText();
+            String lname = lnameField.getText();
+            String ssn = ssnField.getText();
+            String bdate = bdateField.getText();
+            String address = addressField.getText();
+            String sex = (String) sexCombo.getSelectedItem();
+            String salaryText = salaryField.getText();
+            String superSsn = superSsnField.getText().isEmpty() ? null: superSsnField.getText();
+            String dnoText = dnoField.getText();
+
+            // 데이터 검증
+            if (fname.isEmpty() || lname.isEmpty() || ssn.isEmpty() || bdate.isEmpty() || salaryText.isEmpty() || dnoText.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog, "모든 필수 정보를 입력하세요.", "오류", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            try {
+                double salary = Double.parseDouble(salaryText);
+                int dno = Integer.parseInt(dnoText);
+
+                // DBManage 데이터 삽입
+                boolean success = dbManage.addEmployee(fname, minit, lname, ssn, bdate, address, sex, salary, superSsn, dno);
+                if (success) {
+                    JOptionPane.showMessageDialog(dialog, "직원 정보가 추가되었습니다.");
+                    loadEmployeeData();
+                    dialog.dispose();
+                } else {
+                    JOptionPane.showMessageDialog(dialog, "직원 정보 추가에 실패하였습니다.", "오류", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dialog, "연봉 및 부서 번호는 숫자로 입력해야 합니다.", "오류", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);        
     }
 }
