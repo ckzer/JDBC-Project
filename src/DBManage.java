@@ -33,6 +33,7 @@ public class DBManage {
         return executeCustomQuery(query);
     }
 
+    
     // 조건 검색을 위한 메서드 추가
     public ResultSet searchEmployeesByCondition(String searchType, String searchValue, ArrayList<String> selectedColumns) {
         StringBuilder queryBuilder = new StringBuilder();
@@ -156,4 +157,32 @@ public class DBManage {
         }
         return rs;
     }
+    
+    
+    // 직원 추가
+    public boolean addEmployee(String fname, String minit, String lname, String ssn, String bdate, String address,
+                               String sex, double salary, String superSsn, int dno) {
+        String query = "INSERT INTO EMPLOYEE (Fname, Minit, Lname, Ssn, Bdate, Address, Sex, Salary, Super_ssn, Dno) " +
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, fname);
+            pstmt.setString(2, minit);
+            pstmt.setString(3, lname);
+            pstmt.setString(4, ssn);
+            pstmt.setString(5, bdate);
+            pstmt.setString(6, address);
+            pstmt.setString(7, sex);
+            pstmt.setDouble(8, salary);
+            pstmt.setString(9, superSsn);
+            pstmt.setInt(10, dno);
+
+            int rowsAffected = pstmt.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
 }
