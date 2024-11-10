@@ -44,7 +44,7 @@ public class DBManage {
 
         if (!searchType.equals("전체") && !searchValue.isEmpty()) {
             queryBuilder.append("WHERE ");
-            switch(searchType) {
+            switch (searchType) {
                 case "부서":
                     queryBuilder.append("d.Dname = ?");
                     break;
@@ -265,5 +265,4 @@ public class DBManage {
         }
         return worksOnData;
     }
-
 }
