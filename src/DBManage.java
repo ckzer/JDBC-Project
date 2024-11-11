@@ -9,7 +9,7 @@ import java.util.List;
 public class DBManage {
     private static final String url = "jdbc:mysql://localhost:3306/mydb?serverTimeZone=UTC";
     private static final String user = "root";
-    private static final String password = "root";
+    private static final String password = "ckzeralpha2@";
 
     // 데이터베이스 연결을 생성하는 메서드
     public Connection getConnection() {
@@ -42,17 +42,32 @@ public class DBManage {
                 .append("JOIN DEPARTMENT d ON e.Dno = d.Dnumber ")
                 .append("LEFT JOIN EMPLOYEE s ON e.Super_ssn = s.Ssn ");
 
-        if (!searchType.equals("전체") && !searchValue.isEmpty()) {
+        if (!searchType.equals("All") && !searchValue.isEmpty()) {
             queryBuilder.append("WHERE ");
-            switch (searchType) {
-                case "부서":
+            switch(searchType) {
+                case "Department":
                     queryBuilder.append("d.Dname = ?");
                     break;
-                case "성별":
+                case "Gender":
                     queryBuilder.append("e.Sex = ?");
                     break;
-                case "연봉":
+                case "Salary":
                     queryBuilder.append("e.Salary >= ?");
+                    break;
+                case "Name":
+                    queryBuilder.append("CONCAT(e.Fname, ' ', e.Minit, ' ', e.Lname) LIKE ?");
+                    break;
+                case "SSN":
+                    queryBuilder.append("e.Ssn = ?");
+                    break;
+                case "Birth Date":
+                    queryBuilder.append("e.Bdate = ?");
+                    break;
+                case "Address":
+                    queryBuilder.append("e.Address LIKE ?");
+                    break;
+                case "Supervisor":
+                    queryBuilder.append("CONCAT(s.Fname, ' ', s.Minit, ' ', s.Lname) LIKE ?");
                     break;
             }
         }
@@ -61,9 +76,12 @@ public class DBManage {
             Connection conn = getConnection();
             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString());
 
-            if (!searchType.equals("전체") && !searchValue.isEmpty()) {
-                if (searchType.equals("연봉")) {
+            if (!searchType.equals("All") && !searchValue.isEmpty()) {
+                if (searchType.equals("Salary")) {
                     pstmt.setDouble(1, Double.parseDouble(searchValue));
+                } else if (searchType.equals("Name") || searchType.equals("Address") ||
+                        searchType.equals("Supervisor")) {
+                    pstmt.setString(1, "%" + searchValue + "%");
                 } else {
                     pstmt.setString(1, searchValue);
                 }

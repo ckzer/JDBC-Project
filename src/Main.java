@@ -29,7 +29,10 @@ public class Main extends JFrame {
         // 검색 범위 설정
         JPanel searchRangePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         searchRangePanel.add(new JLabel("검색 범위"));
-        searchRangeBox = new JComboBox<>(new String[]{"전체", "부서", "성별", "연봉"});
+        searchRangeBox = new JComboBox<>(new String[]{
+                "All", "Department", "Gender", "Salary",
+                "Name", "SSN", "Birth Date", "Address", "Supervisor"
+        });
         searchRangePanel.add(searchRangeBox);
 
         // 부서 선택 콤보박스
@@ -43,16 +46,24 @@ public class Main extends JFrame {
         searchRangePanel.add(genderComboBox);
 
         // 연봉 입력 필드
-        searchValueField = new JTextField(10);
+        searchValueField = new JTextField(15);
         searchValueField.setVisible(false);
         searchRangePanel.add(searchValueField);
 
         // 검색 범위 변경 이벤트 리스너
         searchRangeBox.addActionListener(e -> {
             String selectedType = (String) searchRangeBox.getSelectedItem();
-            deptComboBox.setVisible(selectedType.equals("부서"));
-            genderComboBox.setVisible(selectedType.equals("성별"));
-            searchValueField.setVisible(selectedType.equals("연봉"));
+            deptComboBox.setVisible(selectedType.equals("Department"));
+            genderComboBox.setVisible(selectedType.equals("Gender"));
+            searchValueField.setVisible(!selectedType.equals("All") &&
+                    !selectedType.equals("Department") &&
+                    !selectedType.equals("Gender"));
+
+            if (selectedType.equals("Birth Date")) {
+                searchValueField.setToolTipText("YYYY-MM-DD 형태나 YYYY 형태로 입력해 주세요!");
+            } else if (selectedType.equals("SSN")) {
+                searchValueField.setToolTipText("9자리의 Ssn을 입력해 주세요!");
+            }
         });
 
         // 검색 항목 설정
@@ -215,25 +226,47 @@ public class Main extends JFrame {
 
         // 검색 조건 추가
         String searchType = (String) searchRangeBox.getSelectedItem();
-        if (!searchType.equals("전체")) {
+        if (!searchType.equals("All")) {
             queryBuilder.append(" WHERE ");
             switch(searchType) {
-                case "부서":
+                case "Department":
                     queryBuilder.append("d.Dname = '").append(deptComboBox.getSelectedItem()).append("'");
                     break;
-                case "성별":
+                case "Gender":
                     queryBuilder.append("e.Sex = '").append(genderComboBox.getSelectedItem()).append("'");
                     break;
-                case "연봉":
+                case "Salary":
                     String salaryValue = searchValueField.getText().trim();
                     if (!salaryValue.isEmpty()) {
                         if (salaryValue.matches("\\d+(\\.\\d+)?")) {
                             queryBuilder.append("e.Salary >= ").append(salaryValue);
                         } else {
-                            JOptionPane.showMessageDialog(this, "연봉은 숫자만 입력 가능합니다.");
+                            JOptionPane.showMessageDialog(this, "급여는 숫자만 입력 가능합니다!", "입력 오류", JOptionPane.ERROR_MESSAGE);
                             return;
                         }
                     }
+                    break;
+                case "Name":
+                    queryBuilder.append("CONCAT(e.Fname, ' ', e.Minit, ' ', e.Lname) LIKE '%")
+                            .append(searchValueField.getText().trim()).append("%'");
+                    break;
+                case "SSN":
+                    queryBuilder.append("e.Ssn = '").append(searchValueField.getText().trim()).append("'");
+                    break;
+                case "Birth Date":
+                    String birthDate = searchValueField.getText().trim();
+                    if (birthDate.length() == 4) {  // 연도만 입력한 경우
+                        queryBuilder.append("YEAR(e.Bdate) = '").append(birthDate).append("'");
+                    } else {  // 전체 날짜를 입력한 경우
+                        queryBuilder.append("e.Bdate = '").append(birthDate).append("'");
+                    }
+                    break;
+                case "Address":
+                    queryBuilder.append("e.Address LIKE '%").append(searchValueField.getText().trim()).append("%'");
+                    break;
+                case "Supervisor":
+                    queryBuilder.append("CONCAT(s.Fname, ' ', s.Minit, ' ', s.Lname) LIKE '%")
+                            .append(searchValueField.getText().trim()).append("%'");
                     break;
             }
         }
@@ -401,7 +434,7 @@ public class Main extends JFrame {
 
             // 데이터 검증
             if (fname.isEmpty() || lname.isEmpty() || ssn.isEmpty() || bdate.isEmpty() || salaryText.isEmpty() || dnoText.isEmpty()) {
-                JOptionPane.showMessageDialog(dialog, "모든 필수 정보를 입력하세요.", "오류", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(dialog, "모든 필수 정보를 입력하세요.", "입력 오류", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
@@ -412,14 +445,14 @@ public class Main extends JFrame {
                 // DBManage 데이터 삽입
                 boolean success = dbManage.addEmployee(fname, minit, lname, ssn, bdate, address, sex, salary, superSsn, dno);
                 if (success) {
-                    JOptionPane.showMessageDialog(dialog, "직원 정보가 추가되었습니다.");
+                    JOptionPane.showMessageDialog(dialog, "직원 정보가 추가되었습니다.", "성공", JOptionPane.INFORMATION_MESSAGE);
                     loadEmployeeData();
                     dialog.dispose();
                 } else {
                     JOptionPane.showMessageDialog(dialog, "직원 정보 추가에 실패하였습니다.", "오류", JOptionPane.ERROR_MESSAGE);
                 }
             } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(dialog, "연봉 및 부서 번호는 숫자로 입력해야 합니다.", "오류", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(dialog, "연봉 및 부서 번호는 숫자로 입력해야 합니다.", "입력 오류", JOptionPane.ERROR_MESSAGE);
             }
         });
 
