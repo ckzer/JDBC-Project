@@ -1,167 +1,268 @@
-import java.awt.*;
-import java.awt.event.*;
-import java.sql.*;
-import java.util.*;
-import javax.swing.*;
-import javax.swing.border.*;
-import javax.swing.table.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
+public class DBManage {
+    private static final String url = "jdbc:mysql://localhost:3306/mydb?serverTimeZone=UTC";
+    private static final String user = "root";
+    private static final String password = "root";
 
-public class DBManage extends JFrame {
-    private Connection conn;
-    private JComboBox<String> selAttributes;
-    private JComboBox<String> selGender;
-    private JComboBox<String> selDept;
-    private JTextField userIn;
-    private JTable resTable;
-    private DefaultTableModel model;
-
-    private final String[] attributes = {"전체", "부서", "이름", "주민번호", "성별", "생년월일", "주소", "임금"};
-    private final String[] transAttribute = {"*", "Dname", "Name", "Ssn", "Sex", "Bdate", "Address", "Salary"};
-    private final String[] gender = {"남성", "여성"};
-    private final String[] dept = {"Research", "Administration", "Headquarters"};
-
-    public DBManage() {
-        super("직원 정보 검색 시스템");
-        setLayout(new BorderLayout());
-        connectDB();
-        initializeUI();
-    }
-    private void connectDB() {
+    // 데이터베이스 연결을 생성하는 메서드
+    public Connection getConnection() {
+        Connection connection = null;
         try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-            String url = "jdbc:mysql://localhost:3306/mydb?serverTimezone=UTC";
-            conn = DriverManager.getConnection(url, "root", "root");
-            System.out.println("데이터베이스 연결 성공");
-        } catch (Exception e) {
-            System.out.println("데이터베이스 연결 실패: " + e.getMessage());
-            System.exit(1);
+            connection = DriverManager.getConnection(url, user, password);
+            System.out.println("Database connected.");
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
+        return connection;
     }
 
-    private void initializeUI() {
-        // 검색 패널
-        JPanel searchPanel = createSearchPanel();
-
-        // 결과 테이블 패널
-        JPanel resultPanel = createResultPanel();
-
-        // 메인 패널에 추가
-        add(searchPanel, BorderLayout.NORTH);
-        add(resultPanel, BorderLayout.CENTER);
-
-        // 전체 직원 보고서 버튼
-        JButton reportBtn = new JButton("전체 직원 보고서");
-        reportBtn.addActionListener(e -> showFullReport());
-        add(reportBtn, BorderLayout.SOUTH);
-
-        setSize(1000, 600);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
+    // 모든 직원 정보를 조회하는 메서드
+    public ResultSet getAllEmployees() {
+        String query = "SELECT e.Fname, e.Minit, e.Lname, e.Ssn, e.Bdate, e.Address, e.Sex, e.Salary, " +
+                "d.Dname AS DepartmentName, CONCAT(s.Fname, ' ', s.Minit, ' ', s.Lname) AS Supervisor " +
+                "FROM EMPLOYEE e " +
+                "JOIN DEPARTMENT d ON e.Dno = d.Dnumber " +
+                "LEFT JOIN EMPLOYEE s ON e.Super_ssn = s.Ssn";
+        return executeCustomQuery(query);
     }
 
-    private JPanel createSearchPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(new TitledBorder("검색 조건"));
 
-        selAttributes = new JComboBox<>(attributes);
-        userIn = new JTextField(20);
-        JButton searchBtn = new JButton("검색");
+    // 조건 검색을 위한 메서드 추가
+    public ResultSet searchEmployeesByCondition(String searchType, String searchValue, ArrayList<String> selectedColumns) {
+        StringBuilder queryBuilder = new StringBuilder();
+        queryBuilder.append("SELECT ").append(String.join(", ", selectedColumns))
+                .append(" FROM EMPLOYEE e ")
+                .append("JOIN DEPARTMENT d ON e.Dno = d.Dnumber ")
+                .append("LEFT JOIN EMPLOYEE s ON e.Super_ssn = s.Ssn ");
 
-        searchBtn.addActionListener(e -> performSearch());
-
-        JPanel inputPanel = new JPanel();
-        inputPanel.add(new JLabel("검색 조건:"));
-        inputPanel.add(selAttributes);
-        inputPanel.add(userIn);
-        inputPanel.add(searchBtn);
-
-        panel.add(inputPanel);
-        return panel;
-    }
-
-    private JPanel createResultPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(new TitledBorder("검색 결과"));
-
-        model = new DefaultTableModel();
-        model.setColumnIdentifiers(new String[]{"이름", "주민번호", "부서", "급여", "주소"});
-        resTable = new JTable(model);
-
-        panel.add(new JScrollPane(resTable));
-        return panel;
-    }
-
-    private void performSearch() {
-        String searchType = selAttributes.getSelectedItem().toString();
-        String searchValue = userIn.getText().trim();
-
-        String query = "SELECT e.Fname, e.Minit, e.Lname, e.Ssn, d.Dname, e.Salary, e.Address " +
-                "FROM EMPLOYEE e JOIN DEPARTMENT d ON e.Dno = d.Dnumber WHERE ";
+        if (!searchType.equals("전체") && !searchValue.isEmpty()) {
+            queryBuilder.append("WHERE ");
+            switch (searchType) {
+                case "부서":
+                    queryBuilder.append("d.Dname = ?");
+                    break;
+                case "성별":
+                    queryBuilder.append("e.Sex = ?");
+                    break;
+                case "연봉":
+                    queryBuilder.append("e.Salary >= ?");
+                    break;
+            }
+        }
 
         try {
-            PreparedStatement pstmt;
-            if (searchType.equals("전체")) {
-                query = query.substring(0, query.length() - 7);
-                pstmt = conn.prepareStatement(query);
-            } else {
-                // 검색 조건에 따른 쿼리 생성
-                switch(searchType) {
-                    case "이름":
-                        query += "e.Fname LIKE ?";
-                        pstmt = conn.prepareStatement(query);
-                        pstmt.setString(1, "%" + searchValue + "%");
-                        break;
-                    case "부서":
-                        query += "d.Dname = ?";
-                        pstmt = conn.prepareStatement(query);
-                        pstmt.setString(1, searchValue);
-                        break;
-                    default:
-                        query += "e." + transAttribute[Arrays.asList(attributes).indexOf(searchType)] + " LIKE ?";
-                        pstmt = conn.prepareStatement(query);
-                        pstmt.setString(1, "%" + searchValue + "%");
+            Connection conn = getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString());
+
+            if (!searchType.equals("전체") && !searchValue.isEmpty()) {
+                if (searchType.equals("연봉")) {
+                    pstmt.setDouble(1, Double.parseDouble(searchValue));
+                } else {
+                    pstmt.setString(1, searchValue);
                 }
             }
 
-            ResultSet rs = pstmt.executeQuery();
-            updateTable(rs);
+            return pstmt.executeQuery();
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "검색 오류: " + e.getMessage());
+            e.printStackTrace();
+            return null;
         }
     }
 
-    private void showFullReport() {
+    // 부서별 평균 급여를 조회하는 메서드 추가
+    public ResultSet getDepartmentAverageSalary() {
+        String query = "SELECT d.Dname, AVG(e.Salary) as AvgSalary " +
+                "FROM EMPLOYEE e JOIN DEPARTMENT d ON e.Dno = d.Dnumber " +
+                "GROUP BY d.Dname";
+        return executeCustomQuery(query);
+    }
+
+    // 사용자가 선택한 직원(들)을 삭제하는 메서드
+    public String deleteEmployees(List<String> ssnList) {
+        // SSN 체크박스에 체크가 되어있어야만 SSN리스트를 전달받아 삭제가 가능하다.
+        if (ssnList == null || ssnList.isEmpty()) {
+            return "SSN 검색 조건 활성화가 필요합니다.";
+        }
+        String deleteWorksOnQuery = "DELETE FROM WORKS_ON WHERE Essn = ?"; // 일한 시간 정보를 먼저 제거
+        String deleteDependentQuery = "DELETE FROM DEPENDENT WHERE Essn = ?"; // 가족 정보를 먼저 제거
+        String deleteQuery = "DELETE FROM EMPLOYEE WHERE Ssn = ?"; // 직원을 제거
+        String updateSuperSsnQuery = "UPDATE EMPLOYEE SET Super_ssn = NULL WHERE Super_ssn = ?"; // 직원의 상사를 수정
+        String updateDepartmentMgrQuery = "UPDATE DEPARTMENT SET Mgr_ssn = '888665555' WHERE Mgr_ssn = ?"; // 부서의 관리자인 경우를 고려
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // 트랜잭션 시작
+
+            try (PreparedStatement deleteWorksOnPstmt = conn.prepareStatement(deleteWorksOnQuery);
+                 PreparedStatement deleteDependentPstmt = conn.prepareStatement(deleteDependentQuery);
+                 PreparedStatement deletePstmt = conn.prepareStatement(deleteQuery);
+                 PreparedStatement updatePstmt = conn.prepareStatement(updateSuperSsnQuery);
+                 PreparedStatement updateDeptMgrPstmt = conn.prepareStatement(updateDepartmentMgrQuery)) {
+
+                for (String ssn : ssnList) {
+
+                    if (ssn.equals("888665555")) {
+                        return "삭제할 수 없는 직원입니다.";
+                    }
+
+                    System.out.println("Attempting to delete employee with SSN: " + ssn);
+                    // 일한 시간 데이터를 삭제
+                    deleteWorksOnPstmt.setString(1, ssn);
+                    deleteWorksOnPstmt.executeUpdate();
+                    // 가족관계 정보 데이터를 삭제
+                    deleteDependentPstmt.setString(1, ssn);
+                    deleteDependentPstmt.executeUpdate();
+                    // 부서의 Mgr_ssn을 NULL로 변경
+                    updateDeptMgrPstmt.setString(1, ssn);
+                    updateDeptMgrPstmt.executeUpdate();
+                    // Super_ssn을 NULL로 변경
+                    updatePstmt.setString(1, ssn);
+                    updatePstmt.executeUpdate();
+                    // 직원 데이터를 삭제
+                    deletePstmt.setString(1, ssn);
+                    deletePstmt.addBatch();
+                }
+
+                deletePstmt.executeBatch();
+                conn.commit(); // 트랜잭션 커밋
+                System.out.println("Selected employees deleted successfully.");
+                return "삭제 완료";
+            } catch (SQLException e) {
+                conn.rollback(); // 오류 발생 시 롤백
+                e.printStackTrace();
+                return "삭제 중 오류가 발생했습니다.";
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "데이터베이스 연결 오류가 발생했습니다.";
+        }
+    }
+
+
+    // 사용자 지정 쿼리를 실행하는 메서드
+    public ResultSet executeCustomQuery(String query) {
+        ResultSet rs = null;
         try {
-            String query = "SELECT e.Fname, e.Minit, e.Lname, e.Ssn, d.Dname, e.Salary, e.Address " +
-                    "FROM EMPLOYEE e JOIN DEPARTMENT d ON e.Dno = d.Dnumber";
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(query);
-            updateTable(rs);
+            Connection conn = getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(query);
+            rs = pstmt.executeQuery();
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "보고서 생성 오류: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return rs;
+    }
+
+
+    // 직원 추가
+    public boolean addEmployee(String fname, String minit, String lname, String ssn, String bdate, String address,
+                               String sex, double salary, String superSsn, int dno) {
+        String query = "INSERT INTO EMPLOYEE (Fname, Minit, Lname, Ssn, Bdate, Address, Sex, Salary, Super_ssn, Dno) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, fname);
+            pstmt.setString(2, minit);
+            pstmt.setString(3, lname);
+            pstmt.setString(4, ssn);
+            pstmt.setString(5, bdate);
+            pstmt.setString(6, address);
+            pstmt.setString(7, sex);
+            pstmt.setDouble(8, salary);
+            pstmt.setString(9, superSsn);
+            pstmt.setInt(10, dno);
+
+            int rowsAffected = pstmt.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
         }
     }
 
-    private void updateTable(ResultSet rs) throws SQLException {
-        model.setRowCount(0);
-        while (rs.next()) {
-            String fullName = rs.getString("Fname") + " " +
-                    rs.getString("Minit") + " " +
-                    rs.getString("Lname");
-            model.addRow(new Object[]{
-                    fullName,
-                    rs.getString("Ssn"),
-                    rs.getString("Dname"),
-                    rs.getDouble("Salary"),
-                    rs.getString("Address")
-            });
+    // Works_On 테이블 데이터를 List<Object[]> 형식으로 반환하는 메서드
+    public List<Object[]> getWorksOnData() {
+        List<Object[]> worksOnData = new ArrayList<>();
+        String query = "SELECT Essn, Pno, Hours FROM WORKS_ON";
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (!rs.isBeforeFirst()) {  // ResultSet이 비어있는지 확인
+                System.out.println("No data found in Works_On table.");
+            } else {
+                while (rs.next()) {
+                    Object[] rowData = new Object[3];
+                    rowData[0] = rs.getString("Essn");
+                    rowData[1] = rs.getString("Pno");
+                    rowData[2] = rs.getString("Hours");
+                    worksOnData.add(rowData);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
+        return worksOnData;
     }
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            new DBManage().setVisible(true);
-        });
+
+    // DEPENDENT 테이블 데이터를 List<Object[]> 형식으로 반환하는 메서드
+    public List<Object[]> getDependentData() {
+        List<Object[]> worksOnData = new ArrayList<>();
+        String query = "SELECT D.Essn, E.Fname, D.Dependent_name, D.Sex, D.Bdate, D.Relationship FROM DEPENDENT D, EMPLOYEE E WHERE D.Essn = E.Ssn";
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (!rs.isBeforeFirst()) {  // ResultSet이 비어있는지 확인
+                System.out.println("No data found in Works_On table.");
+            } else {
+                while (rs.next()) {
+                    Object[] rowData = new Object[6];
+                    rowData[0] = rs.getString("D.Essn");
+                    rowData[1] = rs.getString("E.Fname");
+                    rowData[2] = rs.getString("D.Dependent_name");
+                    rowData[3] = rs.getString("D.Sex");
+                    rowData[4] = rs.getString("D.Bdate");
+                    rowData[5] = rs.getString("D.Relationship");
+                    worksOnData.add(rowData);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return worksOnData;
+    }
+
+
+    // Works_On 테이블 데이터를 List<Object[]> 형식으로 반환하는 메서드
+    public List<Object[]> getProjectData() {
+        List<Object[]> worksOnData = new ArrayList<>();
+        String query = "SELECT Pname, Pnumber, Plocation, Dname FROM PROJECT, DEPARTMENT WHERE Dnumber = Dnum";
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (!rs.isBeforeFirst()) {  // ResultSet이 비어있는지 확인
+                System.out.println("No data found in Works_On table.");
+            } else {
+                while (rs.next()) {
+                    Object[] rowData = new Object[4];
+                    rowData[0] = rs.getString("Pname");
+                    rowData[1] = rs.getString("Pnumber");
+                    rowData[2] = rs.getString("Plocation");
+                    rowData[3] = rs.getString("Dname");
+                    worksOnData.add(rowData);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return worksOnData;
     }
 }
