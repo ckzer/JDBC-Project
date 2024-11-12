@@ -40,12 +40,14 @@ public class Main extends JFrame {
         });
         searchRangePanel.add(searchRangeBox);
 
-        // 부서/성별 선택 콤보박스
+        // 부서 선택 콤보박스
         deptComboBox = new JComboBox<>(new String[]{"Research", "Administration", "Headquarters"});
-        genderComboBox = new JComboBox<>(new String[]{"F", "M"});
         deptComboBox.setVisible(false);
-        genderComboBox.setVisible(false);
         searchRangePanel.add(deptComboBox);
+
+        // 성별 선택 콤보박스
+        genderComboBox = new JComboBox<>(new String[]{"F", "M"});
+        genderComboBox.setVisible(false);
         searchRangePanel.add(genderComboBox);
 
         // 연봉 입력 필드
@@ -61,6 +63,7 @@ public class Main extends JFrame {
             searchValueField.setVisible(!selectedType.equals("All") &&
                     !selectedType.equals("Department") &&
                     !selectedType.equals("Gender"));
+
             if (selectedType.equals("Birth Date")) {
                 searchValueField.setToolTipText("YYYY-MM-DD 형태나 YYYY 형태로 입력해 주세요!");
             } else if (selectedType.equals("SSN")) {
@@ -78,13 +81,13 @@ public class Main extends JFrame {
         dependentButton.addActionListener(e -> toggleView(TableMode.DEPENDENT));
         projectButton.addActionListener(e -> toggleView(TableMode.PROJECT));
 
-        searchRangePanel.add(worksOnButton);
-        searchRangePanel.add(dependentButton);
-        searchRangePanel.add(projectButton);
-
         // 검색 항목 설정
         JPanel searchAttributesPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         searchAttributesPanel.add(new JLabel("검색 항목"));
+
+        searchRangePanel.add(worksOnButton);
+        searchRangePanel.add(dependentButton);
+        searchRangePanel.add(projectButton);
 
         // 각각의 JCheckBox 초기화
         nameBox = new JCheckBox("Name");
@@ -139,9 +142,7 @@ public class Main extends JFrame {
         updatePanel.add(new JLabel("수정:"));
 
         // 수정할 필드 선택 콤보박스
-        updateFieldBox = new JComboBox<>(new String[]{
-                "Name", "SSN", "Birth Date", "Address", "Sex", "Salary", "Supervisor", "Department"
-        });
+        updateFieldBox = new JComboBox<>();
         updateValueField = new JTextField(10);
         sexComboBox = new JComboBox<>(new String[]{"F", "M"});
         supervisorComboBox = new JComboBox<>(new String[]{"Franklin T Wong", "James E Borg", "Jennifer S Wallace", "NULL"});
@@ -154,8 +155,10 @@ public class Main extends JFrame {
         updatePanel.add(departmentComboBox);
 
         // 필드 선택에 따른 입력 컴포넌트 로직
-        updateFieldBox.addActionListener(e -> updateUIBasedOnSelectedField((String) updateFieldBox.getSelectedItem()));
-
+        updateFieldBox.addActionListener(e -> {
+            String selectedField = (String) updateFieldBox.getSelectedItem();
+            updateUIBasedOnSelectedField(selectedField);
+        });
 
         // 처음에는 모든 특정 콤보 상자 숨기기
         sexComboBox.setVisible(false);
@@ -166,6 +169,7 @@ public class Main extends JFrame {
         updateButton = new JButton("UPDATE");
         updateButton.addActionListener(e -> {
             boolean success = false;
+
             if (currentMode == TableMode.WORKS_ON) {
                 String essn = getSelectedID();
                 String pno = getSelectedPno();
@@ -233,15 +237,20 @@ public class Main extends JFrame {
                 Boolean isChecked = (Boolean) employeeTable.getValueAt(i, 0);
                 if (isChecked != null && isChecked) {
                     String ssn = (String) employeeTable.getValueAt(i, employeeTable.getColumnModel().getColumnIndex("SSN"));
+                    System.out.println("Selected for deletion, SSN: " + ssn);
                     selectedSSNs.add(ssn);
                 }
             }
+
             if (!selectedSSNs.isEmpty()) {
                 String result = dbManage.deleteEmployees(selectedSSNs);
-                JOptionPane.showMessageDialog(null, result.equals("삭제 완료") ? "선택한 직원이 삭제되었습니다." : result,
-                        result.equals("삭제 완료") ? "성공" : "오류",
-                        result.equals("삭제 완료") ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE);
-                loadEmployeeData();
+                if (result.equals("삭제할 수 없는 직원입니다")) {
+                    JOptionPane.showMessageDialog(null, result, "경고", JOptionPane.WARNING_MESSAGE);
+                } else if (result.equals("삭제 완료")) {
+                    loadEmployeeData(); // 테이블 업데이트
+                } else {
+                    JOptionPane.showMessageDialog(null, result, "오류", JOptionPane.ERROR_MESSAGE);
+                }
             } else {
                 JOptionPane.showMessageDialog(null, "삭제할 직원이 선택되지 않았습니다.");
             }
@@ -260,16 +269,17 @@ public class Main extends JFrame {
     }
 
     private void toggleView(TableMode mode) {
-        // Check if the current mode is already the selected mode
         if (currentMode == mode) {
-            // If already in the selected mode, switch back to EMPLOYEE view
-            currentMode = TableMode.EMPLOYEE;
             loadEmployeeData();
             resetUpdateFieldBoxForEmployee();
+            currentMode = TableMode.EMPLOYEE;
         } else {
-            // Switch to the selected mode and update the view
             currentMode = mode;
-            switch (mode) {
+            switch (currentMode) {
+                case EMPLOYEE:
+                    loadEmployeeData();
+                    resetUpdateFieldBoxForEmployee();
+                    break;
                 case WORKS_ON:
                     displayWorksOnData();
                     resetUpdateFieldBox(new String[]{"Pno", "Hours"});
@@ -282,15 +292,9 @@ public class Main extends JFrame {
                     displayProjectData();
                     resetUpdateFieldBox(new String[]{"Pname", "Pnumber", "Plocation", "Dname"});
                     break;
-                default:
-                    // In case of EMPLOYEE or any unknown mode, fallback to EMPLOYEE data load
-                    loadEmployeeData();
-                    resetUpdateFieldBoxForEmployee();
-                    break;
             }
         }
     }
-
 
     // Updates the UI based on the selected field in the update combo box
     private void updateUIBasedOnSelectedField(String selectedField) {
@@ -298,6 +302,7 @@ public class Main extends JFrame {
         sexComboBox.setVisible(false);
         supervisorComboBox.setVisible(false);
         departmentComboBox.setVisible(false);
+
         switch (selectedField) {
             case "Sex":
                 updateValueField.setVisible(false);
@@ -311,60 +316,48 @@ public class Main extends JFrame {
                 updateValueField.setVisible(false);
                 departmentComboBox.setVisible(true);
                 break;
+            case "Birth Date":
+                updateValueField.setToolTipText("YYYY-MM-DD 형식으로 입력하세요");
+                break;
+            case "SSN":
+                updateValueField.setToolTipText("9자리 숫자로 입력하세요");
+                break;
             default:
-                updateValueField.setToolTipText(selectedField.equals("Birth Date") ? "YYYY-MM-DD 형식으로 입력하세요" :
-                        selectedField.equals("SSN") ? "9자리 숫자로 입력하세요" : "");
+                updateValueField.setToolTipText("");
         }
     }
 
-    private boolean updateEmployeeData() {
-        String selectedSSN = getSelectedID();
-        String field = (String) updateFieldBox.getSelectedItem();
-        String newValue = getSelectedFieldValue(field);
-
-        boolean result = dbManage.updateEmployee(selectedSSN, field, newValue);
-        return result;
-    }
-
+    // Gets the selected employee ID (SSN in this case) for updates
     private String getSelectedID() {
         int selectedRow = employeeTable.getSelectedRow();
         if (selectedRow == -1) {
             return null;
         }
 
+        int idColumnIndex = -1;
         String columnName;
+
+        // Determine column name based on current mode
         switch (currentMode) {
             case WORKS_ON:
-                columnName = "Essn"; // Assuming "Essn" is the identifier for WORKS_ON table
+                columnName = "Essn";
                 break;
             case DEPENDENT:
-                columnName = "Essn"; // Assuming "Essn" is the identifier for DEPENDENT table
+                columnName = "Essn";
                 break;
-            case PROJECT:
-                columnName = "Pnumber"; // Assuming "Pnumber" is the identifier for PROJECT table
-                break;
-            case EMPLOYEE:
             default:
-                columnName = "SSN"; // Default to "SSN" for EMPLOYEE table
+                columnName = "SSN";
                 break;
         }
 
-        // Check if the column exists in the table
-        int columnIndex = -1;
         for (int i = 0; i < employeeTable.getColumnCount(); i++) {
             if (employeeTable.getColumnName(i).equals(columnName)) {
-                columnIndex = i;
+                idColumnIndex = i;
                 break;
             }
         }
 
-        // If column is not found, return null to prevent IllegalArgumentException
-        if (columnIndex == -1) {
-            System.err.println("Error: Column " + columnName + " not found in the current table mode.");
-            return null;
-        }
-
-        return (String) employeeTable.getValueAt(selectedRow, columnIndex);
+        return idColumnIndex != -1 ? (String) employeeTable.getValueAt(selectedRow, idColumnIndex) : null;
     }
 
     // Gets the selected Pno for the WORKS_ON or PROJECT table
@@ -386,12 +379,16 @@ public class Main extends JFrame {
 
     // Returns the value from the UI component based on the selected field
     private String getSelectedFieldValue(String field) {
-        return switch (field) {
-            case "Sex" -> (String) sexComboBox.getSelectedItem();
-            case "Supervisor" -> (String) supervisorComboBox.getSelectedItem();
-            case "Department" -> (String) departmentComboBox.getSelectedItem();
-            default -> updateValueField.getText().trim();
-        };
+        switch (field) {
+            case "Sex":
+                return (String) sexComboBox.getSelectedItem();
+            case "Supervisor":
+                return (String) supervisorComboBox.getSelectedItem();
+            case "Department":
+                return (String) departmentComboBox.getSelectedItem();
+            default:
+                return updateValueField.getText().trim();
+        }
     }
 
     // Gets the selected dependent's name for the DEPENDENT table
@@ -424,6 +421,28 @@ public class Main extends JFrame {
 
     private boolean updateProjectData(String pnumber, String field, String newValue) {
         return dbManage.updateProject(pnumber, field, newValue);
+    }
+
+    private boolean updateEmployeeData() {
+        String selectedSSN = getSelectedID();
+        String field = (String) updateFieldBox.getSelectedItem();
+        String newValue = getSelectedFieldValue(field);
+
+        // 디버깅 출력
+        System.out.println("Attempting to update Employee:");
+        System.out.println("Selected SSN: " + selectedSSN);
+        System.out.println("Field to Update: " + field);
+        System.out.println("New Value: " + newValue);
+
+        boolean result = dbManage.updateEmployee(selectedSSN, field, newValue);
+
+        if (!result) {
+            System.out.println("Failed to update employee in database.");
+        } else {
+            System.out.println("Employee updated successfully.");
+        }
+
+        return result;
     }
 
     // 직원 추가 대화 상자
