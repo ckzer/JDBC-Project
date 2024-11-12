@@ -151,6 +151,11 @@ public class Main extends JFrame {
 
     // View 전환 및 필드 제한 메서드
     private void switchView(String viewMode, String[] editableFields) {
+        if (currentViewMode.equals(viewMode)) {
+            // Toggle back to the employee view if the same view button is clicked
+            viewMode = "employee";
+            editableFields = new String[]{"Fname", "Minit", "Lname", "Ssn", "Bdate", "Address", "Sex", "Salary", "Super_ssn", "Dno"};
+        }
         currentViewMode = viewMode;
         updateFieldBox.removeAllItems();
         for (String field : editableFields) {
