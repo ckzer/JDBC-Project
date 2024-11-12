@@ -33,6 +33,7 @@ public class DBManage {
         return executeCustomQuery(query);
     }
 
+
     // 조건 검색
     public ResultSet searchEmployeesByCondition(String searchType, String searchValue, ArrayList<String> selectedColumns) {
         StringBuilder queryBuilder = new StringBuilder();
@@ -93,7 +94,7 @@ public class DBManage {
         }
     }
 
-    // 부서별 평균 급여를 조회하는 메서드
+    // 부서별 평균 급여를 조회하는 메서드 추가
     public ResultSet getDepartmentAverageSalary() {
         String query = "SELECT d.Dname, AVG(e.Salary) as AvgSalary " +
                 "FROM EMPLOYEE e JOIN DEPARTMENT d ON e.Dno = d.Dnumber " +
@@ -103,14 +104,15 @@ public class DBManage {
 
     // 사용자가 선택한 직원(들)을 삭제하는 메서드
     public String deleteEmployees(List<String> ssnList) {
+        // SSN 체크박스에 체크가 되어있어야만 SSN리스트를 전달받아 삭제가 가능하다.
         if (ssnList == null || ssnList.isEmpty()) {
             return "SSN 검색 조건 활성화가 필요합니다.";
         }
-        String deleteWorksOnQuery = "DELETE FROM WORKS_ON WHERE Essn = ?";
-        String deleteDependentQuery = "DELETE FROM DEPENDENT WHERE Essn = ?";
-        String deleteQuery = "DELETE FROM EMPLOYEE WHERE Ssn = ?";
-        String updateSuperSsnQuery = "UPDATE EMPLOYEE SET Super_ssn = NULL WHERE Super_ssn = ?";
-        String updateDepartmentMgrQuery = "UPDATE DEPARTMENT SET Mgr_ssn = '888665555' WHERE Mgr_ssn = ?";
+        String deleteWorksOnQuery = "DELETE FROM WORKS_ON WHERE Essn = ?"; // 일한 시간 정보를 먼저 제거
+        String deleteDependentQuery = "DELETE FROM DEPENDENT WHERE Essn = ?"; // 가족 정보를 먼저 제거
+        String deleteQuery = "DELETE FROM EMPLOYEE WHERE Ssn = ?"; // 직원을 제거
+        String updateSuperSsnQuery = "UPDATE EMPLOYEE SET Super_ssn = NULL WHERE Super_ssn = ?"; // 직원의 상사를 수정
+        String updateDepartmentMgrQuery = "UPDATE DEPARTMENT SET Mgr_ssn = '888665555' WHERE Mgr_ssn = ?"; // 부서의 관리자인 경우를 고려
 
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false); // 트랜잭션 시작
@@ -122,29 +124,32 @@ public class DBManage {
                  PreparedStatement updateDeptMgrPstmt = conn.prepareStatement(updateDepartmentMgrQuery)) {
 
                 for (String ssn : ssnList) {
+
                     if (ssn.equals("888665555")) {
                         return "삭제할 수 없는 직원입니다.";
                     }
 
-                    // 일한 시간 데이터 삭제
+                    System.out.println("Attempting to delete employee with SSN: " + ssn);
+                    // 일한 시간 데이터를 삭제
                     deleteWorksOnPstmt.setString(1, ssn);
                     deleteWorksOnPstmt.executeUpdate();
-                    // 가족관계 정보 데이터 삭제
+                    // 가족관계 정보 데이터를 삭제
                     deleteDependentPstmt.setString(1, ssn);
                     deleteDependentPstmt.executeUpdate();
-                    // 부서 관리자의 Mgr_ssn을 변경
+                    // 부서의 Mgr_ssn을 88866555로 변경
                     updateDeptMgrPstmt.setString(1, ssn);
                     updateDeptMgrPstmt.executeUpdate();
                     // Super_ssn을 NULL로 변경
                     updatePstmt.setString(1, ssn);
                     updatePstmt.executeUpdate();
-                    // 직원 데이터 삭제
+                    // 직원 데이터를 삭제
                     deletePstmt.setString(1, ssn);
                     deletePstmt.addBatch();
                 }
 
                 deletePstmt.executeBatch();
                 conn.commit(); // 트랜잭션 커밋
+                System.out.println("Selected employees deleted successfully.");
                 return "삭제 완료";
             } catch (SQLException e) {
                 conn.rollback(); // 오류 발생 시 롤백
@@ -156,6 +161,7 @@ public class DBManage {
             return "데이터베이스 연결 오류가 발생했습니다.";
         }
     }
+
 
     // 사용자 지정 쿼리를 실행하는 메서드
     public ResultSet executeCustomQuery(String query) {
@@ -169,6 +175,7 @@ public class DBManage {
         }
         return rs;
     }
+
 
     // 직원 추가
     public boolean addEmployee(String fname, String minit, String lname, String ssn, String bdate, String address,
@@ -196,13 +203,39 @@ public class DBManage {
         }
     }
 
-    // 직원 정보 수정 (일반적인 updateEmployee 메서드로 합쳤습니다.)
+
+    public boolean updateEmployeeName(String ssn, String fullName) {
+        String[] nameParts = fullName.split(" ");
+        if (nameParts.length != 3) {
+            return false;
+        }
+
+        String query = "UPDATE EMPLOYEE SET Fname = ?, Minit = ?, Lname = ? WHERE Ssn = ?";
+
+        try {
+            Connection conn = getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(query);
+            pstmt.setString(1, nameParts[0]); // Fname
+            pstmt.setString(2, nameParts[1]); // Minit
+            pstmt.setString(3, nameParts[2]); // Lname
+            pstmt.setString(4, ssn);
+
+            int result = pstmt.executeUpdate();
+            return result > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // 직원 정보 수정
     public boolean updateEmployee(String ssn, String field, String value) {
         String query = "";
         try {
-            switch(field) {
+            // 필드에 따라 쿼리 결정
+            switch (field) {
                 case "Name":
-                    return updateEmployeeName(ssn, value);
+                    return updateEmployeeName(ssn, value); // full name 업데이트
                 case "SSN":
                     query = "UPDATE EMPLOYEE SET Ssn = ? WHERE Ssn = ?";
                     break;
@@ -229,12 +262,18 @@ public class DBManage {
                     query = "UPDATE EMPLOYEE SET Dno = (SELECT Dnumber FROM DEPARTMENT WHERE Dname = ?) WHERE Ssn = ?";
                     break;
                 default:
+                    System.out.println("Unknown field for update: " + field);
                     return false;
             }
+
+            // 디버깅 출력
+            System.out.println("Executing query: " + query);
+            System.out.println("Parameters: Value - " + value + ", SSN - " + ssn);
 
             try (Connection conn = getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(query)) {
 
+                // 파라미터 설정
                 if (field.equals("Salary")) {
                     pstmt.setDouble(1, Double.parseDouble(value));
                 } else {
@@ -242,7 +281,9 @@ public class DBManage {
                 }
                 pstmt.setString(2, ssn);
 
-                return pstmt.executeUpdate() > 0;
+                int rowsAffected = pstmt.executeUpdate();
+                System.out.println("Rows affected: " + rowsAffected); // 디버깅 출력
+                return rowsAffected > 0;
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -250,29 +291,8 @@ public class DBManage {
         }
     }
 
-    // 직원 이름 수정
-    private boolean updateEmployeeName(String ssn, String fullName) {
-        String[] nameParts = fullName.split(" ");
-        if (nameParts.length != 3) {
-            return false;
-        }
 
-        String query = "UPDATE EMPLOYEE SET Fname = ?, Minit = ?, Lname = ? WHERE Ssn = ?";
-        try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setString(1, nameParts[0]);
-            pstmt.setString(2, nameParts[1]);
-            pstmt.setString(3, nameParts[2]);
-            pstmt.setString(4, ssn);
-
-            int result = pstmt.executeUpdate();
-            return result > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
+    // Works_On 테이블 데이터를 List<Object[]> 형식으로 반환하는 메서드
     public List<Object[]> getWorksOnData() {
         List<Object[]> worksOnData = new ArrayList<>();
         String query = "SELECT Essn, Pno, Hours FROM WORKS_ON";
@@ -280,12 +300,16 @@ public class DBManage {
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query);
              ResultSet rs = pstmt.executeQuery()) {
-            while (rs.next()) {
-                Object[] rowData = new Object[3];
-                rowData[0] = rs.getString("Essn");
-                rowData[1] = rs.getString("Pno");
-                rowData[2] = rs.getString("Hours");
-                worksOnData.add(rowData);
+            if (!rs.isBeforeFirst()) {  // ResultSet이 비어있는지 확인
+                System.out.println("No data found in Works_On table.");
+            } else {
+                while (rs.next()) {
+                    Object[] rowData = new Object[3];
+                    rowData[0] = rs.getString("Essn");
+                    rowData[1] = rs.getString("Pno");
+                    rowData[2] = rs.getString("Hours");
+                    worksOnData.add(rowData);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -293,90 +317,118 @@ public class DBManage {
         return worksOnData;
     }
 
+
+    // DEPENDENT 테이블 데이터를 List<Object[]> 형식으로 반환하는 메서드
     public List<Object[]> getDependentData() {
-        List<Object[]> dependentData = new ArrayList<>();
-        String query = "SELECT D.Essn, E.Fname, D.Dependent_name, D.Sex, D.Bdate, D.Relationship " +
-                "FROM DEPENDENT D JOIN EMPLOYEE E ON D.Essn = E.Ssn";
+        List<Object[]> worksOnData = new ArrayList<>();
+        String query = "SELECT D.Essn, E.Fname, D.Dependent_name, D.Sex, D.Bdate, D.Relationship FROM DEPENDENT D, EMPLOYEE E WHERE D.Essn = E.Ssn";
 
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query);
              ResultSet rs = pstmt.executeQuery()) {
-            while (rs.next()) {
-                Object[] rowData = new Object[6];
-                rowData[0] = rs.getString("D.Essn");
-                rowData[1] = rs.getString("E.Fname");
-                rowData[2] = rs.getString("D.Dependent_name");
-                rowData[3] = rs.getString("D.Sex");
-                rowData[4] = rs.getString("D.Bdate");
-                rowData[5] = rs.getString("D.Relationship");
-                dependentData.add(rowData);
+            if (!rs.isBeforeFirst()) {  // ResultSet이 비어있는지 확인
+                System.out.println("No data found in Works_On table.");
+            } else {
+                while (rs.next()) {
+                    Object[] rowData = new Object[6];
+                    rowData[0] = rs.getString("D.Essn");
+                    rowData[1] = rs.getString("E.Fname");
+                    rowData[2] = rs.getString("D.Dependent_name");
+                    rowData[3] = rs.getString("D.Sex");
+                    rowData[4] = rs.getString("D.Bdate");
+                    rowData[5] = rs.getString("D.Relationship");
+                    worksOnData.add(rowData);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return dependentData;
+        return worksOnData;
     }
 
+
+    // Works_On 테이블 데이터를 List<Object[]> 형식으로 반환하는 메서드
     public List<Object[]> getProjectData() {
-        List<Object[]> projectData = new ArrayList<>();
-        String query = "SELECT Pname, Pnumber, Plocation, Dname FROM PROJECT " +
-                "JOIN DEPARTMENT ON PROJECT.Dnum = DEPARTMENT.Dnumber";
+        List<Object[]> worksOnData = new ArrayList<>();
+        String query = "SELECT Pname, Pnumber, Plocation, Dname FROM PROJECT, DEPARTMENT WHERE Dnumber = Dnum";
 
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query);
              ResultSet rs = pstmt.executeQuery()) {
-            while (rs.next()) {
-                Object[] rowData = new Object[4];
-                rowData[0] = rs.getString("Pname");
-                rowData[1] = rs.getString("Pnumber");
-                rowData[2] = rs.getString("Plocation");
-                rowData[3] = rs.getString("Dname");
-                projectData.add(rowData);
+            if (!rs.isBeforeFirst()) {  // ResultSet이 비어있는지 확인
+                System.out.println("No data found in Works_On table.");
+            } else {
+                while (rs.next()) {
+                    Object[] rowData = new Object[4];
+                    rowData[0] = rs.getString("Pname");
+                    rowData[1] = rs.getString("Pnumber");
+                    rowData[2] = rs.getString("Plocation");
+                    rowData[3] = rs.getString("Dname");
+                    worksOnData.add(rowData);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return projectData;
+        return worksOnData;
     }
 
-    // Works_On 테이블 업데이트
+    // WORKS_ON 테이블을 업데이트하는 메서드
     public boolean updateWorksOn(String essn, String pno, String field, String newValue) {
         String query = "UPDATE WORKS_ON SET " + field + " = ? WHERE Essn = ? AND Pno = ?";
         try (Connection connection = getConnection();
              PreparedStatement stmt = connection.prepareStatement(query)) {
+            System.out.println("Attempting to update WORKS_ON table...");
+            System.out.println("Query: " + query);
+            System.out.println("Parameters: field = " + field + ", newValue = " + newValue + ", essn = " + essn + ", pno = " + pno);
+
             stmt.setString(1, newValue);
             stmt.setString(2, essn);
             stmt.setString(3, pno);
-            return stmt.executeUpdate() > 0;
+            int rowsAffected = stmt.executeUpdate();
+            System.out.println("Rows affected: " + rowsAffected); // 디버깅 출력
+            return rowsAffected > 0;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
         }
     }
 
-    // DEPENDENT 테이블 업데이트
+    // DEPENDENT 테이블을 업데이트하는 메서드
     public boolean updateDependent(String essn, String dependentName, String field, String newValue) {
         String query = "UPDATE DEPENDENT SET " + field + " = ? WHERE Essn = ? AND Dependent_name = ?";
         try (Connection connection = getConnection();
              PreparedStatement stmt = connection.prepareStatement(query)) {
+            System.out.println("Attempting to update DEPENDENT table...");
+            System.out.println("Query: " + query);
+            System.out.println("Parameters: field = " + field + ", newValue = " + newValue + ", essn = " + essn + ", dependentName = " + dependentName);
+
             stmt.setString(1, newValue);
             stmt.setString(2, essn);
             stmt.setString(3, dependentName);
-            return stmt.executeUpdate() > 0;
+            int rowsAffected = stmt.executeUpdate();
+            System.out.println("Rows affected: " + rowsAffected); // 디버깅 출력
+            return rowsAffected > 0;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
         }
     }
 
-    // PROJECT 테이블 업데이트
+    // PROJECT 테이블을 업데이트하는 메서드
     public boolean updateProject(String pnumber, String field, String newValue) {
         String query = "UPDATE PROJECT SET " + field + " = ? WHERE Pnumber = ?";
         try (Connection connection = getConnection();
              PreparedStatement stmt = connection.prepareStatement(query)) {
+            System.out.println("Attempting to update PROJECT table...");
+            System.out.println("Query: " + query);
+            System.out.println("Parameters: field = " + field + ", newValue = " + newValue + ", pnumber = " + pnumber);
+
             stmt.setString(1, newValue);
             stmt.setString(2, pnumber);
-            return stmt.executeUpdate() > 0;
+            int rowsAffected = stmt.executeUpdate();
+            System.out.println("Rows affected: " + rowsAffected); // 디버깅 출력
+            return rowsAffected > 0;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
