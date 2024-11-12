@@ -7,68 +7,30 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Main extends JFrame {
-    private DBManage dbManage;
-    private JTable employeeTable;
+    private DBManage dbManage; // DB와 연결 & 데이터 가져옴
+    private JTable employeeTable; // 직원 정보 테이블, 데이터 저장
     private DefaultTableModel model;
-    private JComboBox<String> searchRangeBox, deptComboBox, genderComboBox, updateFieldBox;
-    private JTextField searchValueField, updateValueField;
+    private JComboBox searchRangeBox; // 검색 범위 및 항목 설정하는 드롭다운&체크박스
+    private JComboBox<String> deptComboBox; // 부서 선택 콤보박스
+    private JComboBox<String> genderComboBox; // 성별 선택 콤보박스
+    private JTextField searchValueField; // 연봉 입력 필드
     private JCheckBox nameBox, ssnBox, bdateBox, addressBox, sexBox, salaryBox, supervisorBox, departmentBox;
-    private JLabel selectedCountLabel;
-    private JButton updateButton;
-    private JPanel updatePanel;
-    private String currentViewMode = "employee";
+    private JLabel selectedCountLabel; // 선택된 직원수 표시
 
     public Main() {
         dbManage = new DBManage(); // DB와 연결 준비
 
-        setTitle("Information Retrieval System");
-        setSize(1000, 600);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        // 기본 설정
+        setTitle("Information Retrieval System"); // 창 제목
+        setSize(1000, 600); // 창 크기
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // 닫기 버튼 설정
         setLayout(new BorderLayout());
 
-        // Initialize update components
-        updateFieldBox = new JComboBox<>();
-        updateValueField = new JTextField(10);
-        updateButton = new JButton("UPDATE");
-
-        // Add the update button listener
-        updateButton.addActionListener(e -> {
-            updateData();
-        });
-
-        // Configure the update panel with the instance variables
-        updatePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        updatePanel.add(new JLabel("수정:"));
-        updatePanel.add(updateFieldBox);
-        updatePanel.add(updateValueField);
-        updatePanel.add(updateButton);
-
-        // 근무시간 조회 버튼
-        JButton worksOnButton = new JButton("근무시간 조회");
-        worksOnButton.addActionListener(e -> {
-            switchView("works_on", new String[]{"Pno", "Hours"});
-        });
-
-        // 가족 정보 조회 버튼
-        JButton dependentButton = new JButton("가족 정보 조회");
-        dependentButton.addActionListener(e -> {
-            switchView("dependent", new String[]{"Fname", "Dependent_name", "Sex", "Bdate", "Relationship"});
-        });
-
-        // 프로젝트 조회 버튼
-        JButton projectButton = new JButton("프로젝트 조회");
-        projectButton.addActionListener(e -> {
-            switchView("project", new String[]{"Pname", "Pnumber", "Plocation"});
-        });
-
-        // Adding buttons to the search range panel
+        // 검색 범위 설정
         JPanel searchRangePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         searchRangePanel.add(new JLabel("검색 범위"));
         searchRangeBox = new JComboBox<>(new String[]{"전체", "부서", "성별", "연봉"});
         searchRangePanel.add(searchRangeBox);
-        searchRangePanel.add(worksOnButton);
-        searchRangePanel.add(dependentButton);
-        searchRangePanel.add(projectButton);
 
         // 부서 선택 콤보박스
         deptComboBox = new JComboBox<>(new String[]{"Research", "Administration", "Headquarters"});
@@ -97,6 +59,20 @@ public class Main extends JFrame {
         JPanel searchAttributesPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         searchAttributesPanel.add(new JLabel("검색 항목"));
 
+        // goomin_add
+        JButton worksOnButton = new JButton("근무시간 조회");
+        JButton dependentButton = new JButton("가족 정보 조회");
+        JButton projectButton = new JButton("프로젝트 조회");
+
+        // 버튼 클릭 이벤트 설정
+        worksOnButton.addActionListener(e -> displayWorksOnData());
+        dependentButton.addActionListener(e -> displayDependentData());
+        projectButton.addActionListener(e -> displayProjectData());
+
+        searchRangePanel.add(worksOnButton);
+        searchRangePanel.add(dependentButton);
+        searchRangePanel.add(projectButton);
+
         // 각각의 JCheckBox 초기화
         nameBox = new JCheckBox("Name");
         ssnBox = new JCheckBox("SSN");
@@ -107,6 +83,7 @@ public class Main extends JFrame {
         supervisorBox = new JCheckBox("Supervisor");
         departmentBox = new JCheckBox("Department");
 
+        // 각 JCheckBox를 searchAttributesPanel 패널에 추가
         searchAttributesPanel.add(nameBox);
         searchAttributesPanel.add(ssnBox);
         searchAttributesPanel.add(bdateBox);
@@ -116,16 +93,19 @@ public class Main extends JFrame {
         searchAttributesPanel.add(supervisorBox);
         searchAttributesPanel.add(departmentBox);
 
+        // 검색 버튼을 패널에 추가
         JButton searchButton = new JButton("검색");
         searchButton.addActionListener(e -> loadEmployeeData());
         searchAttributesPanel.add(searchButton);
 
+        // 상단 패널에 검색 범위와 검색 항목 패널을 추가
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
         topPanel.add(searchRangePanel);
         topPanel.add(searchAttributesPanel);
         add(topPanel, BorderLayout.NORTH);
 
+        // 테이블 및 스크롤 패널을 센터에 추가
         model = new DefaultTableModel() {
             @Override
             public Class<?> getColumnClass(int column) {
@@ -136,103 +116,70 @@ public class Main extends JFrame {
         JScrollPane scrollPane = new JScrollPane(employeeTable);
         add(scrollPane, BorderLayout.CENTER);
 
+        // 선택한 직원 수 표시 패널
         JPanel countPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         selectedCountLabel = new JLabel("선택한 직원: ");
         countPanel.add(selectedCountLabel);
 
+        // 수정 및 삭제 기능 패널
+        JPanel updatePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        updatePanel.add(new JLabel("수정:"));
+        JComboBox updateFieldBox = new JComboBox<>(new String[]{"Name", "SSN", "Bdate", "Address", "Sex", "Salary", "Supervisor", "Department"});
+        JTextField updateValueField = new JTextField(10);
+        JButton updateButton = new JButton("UPDATE");
+        updatePanel.add(updateFieldBox);
+        updatePanel.add(updateValueField);
+        updatePanel.add(updateButton);
+
+        // 삭제 버튼 패널
+        JPanel deletePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton deleteButton = new JButton("선택한 데이터 삭제");
+        deletePanel.add(deleteButton);
+
+        // 직원 추가 버튼
+        JButton addEmployeeButton = new JButton("직원 추가");
+        addEmployeeButton.addActionListener(e -> showAddEmployeeDialog());
+        deletePanel.add(addEmployeeButton, 0);
+
+
+        deleteButton.addActionListener(e -> {
+            List<String> selectedSSNs = new ArrayList<>(); // java.util.List 사용
+            for (int i = 0; i < employeeTable.getRowCount(); i++) {
+                Boolean isChecked = (Boolean) employeeTable.getValueAt(i, 0); // 체크박스 열이 0번째 열
+                if (isChecked != null && isChecked) {
+                    String ssn = (String) employeeTable.getValueAt(i, employeeTable.getColumnModel().getColumnIndex("SSN")); // SSN 열 인덱스를 정확히 가져옴
+                    System.out.println("Selected for deletion, SSN: " + ssn);
+                    selectedSSNs.add(ssn);
+                }
+            }
+            if (!selectedSSNs.isEmpty()) {
+                String result = dbManage.deleteEmployees(selectedSSNs);
+                if (result.equals("삭제할 수 없는 직원입니다")) {
+                    JOptionPane.showMessageDialog(null, result, "경고", JOptionPane.WARNING_MESSAGE);
+                } else if (result.equals("삭제 완료")) {
+                    loadEmployeeData(); // 체크박스 상태에 따라 테이블 다시 조회
+                } else {
+                    JOptionPane.showMessageDialog(null, result, "오류", JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(null, "삭제할 직원이 선택되지 않았습니다.");
+            }
+        });
+
+
+        // 하단 패널에 추가
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.add(countPanel, BorderLayout.WEST);
         bottomPanel.add(updatePanel, BorderLayout.CENTER);
+        bottomPanel.add(deletePanel, BorderLayout.EAST);
         add(bottomPanel, BorderLayout.SOUTH);
 
+        // 직원 정보 로드
         loadEmployeeData();
         addRowSelectionListener();
     }
 
-    // View 전환 및 필드 제한 메서드
-    private void switchView(String viewMode, String[] editableFields) {
-        if (currentViewMode.equals(viewMode)) {
-            // Toggle back to the employee view if the same view button is clicked
-            viewMode = "employee";
-            editableFields = new String[]{"Fname", "Minit", "Lname", "Ssn", "Bdate", "Address", "Sex", "Salary", "Super_ssn", "Dno"};
-        }
-        currentViewMode = viewMode;
-        updateFieldBox.removeAllItems();
-        for (String field : editableFields) {
-            updateFieldBox.addItem(field);
-        }
-        refreshCurrentView();
-    }
-
-    private void refreshCurrentView() {
-        switch (currentViewMode) {
-            case "works_on" -> displayWorksOnData();
-            case "dependent" -> displayDependentData();
-            case "project" -> displayProjectData();
-            default -> loadEmployeeData();
-        }
-    }
-
-    private void updateData() {
-        int selectedRow = employeeTable.getSelectedRow();
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this, "업데이트할 행을 선택하세요.");
-            return;
-        }
-        String selectedField = (String) updateFieldBox.getSelectedItem();
-        String newValue = updateValueField.getText().trim();
-
-        if (selectedField == null || newValue.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "수정할 필드와 값을 선택하세요.");
-            return;
-        }
-
-        boolean updateSuccess;
-        String identifier = getIdentifierForCurrentView(selectedRow);
-
-        if (currentViewMode.equals("works_on")) {
-            String pno = (String) model.getValueAt(selectedRow, model.findColumn("Pno"));
-            updateSuccess = dbManage.updateField("works_on", identifier, pno, selectedField, newValue);
-        } else if (currentViewMode.equals("dependent")) {
-            String dependentName = (String) model.getValueAt(selectedRow, model.findColumn("Dependent_name"));
-            updateSuccess = dbManage.updateField("dependent", identifier, dependentName, selectedField, newValue);
-        } else if (currentViewMode.equals("project")) {
-            updateSuccess = dbManage.updateField("project", identifier, null, selectedField, newValue);
-        } else {
-            updateSuccess = dbManage.updateField("employee", identifier, null, selectedField, newValue);
-        }
-
-        if (updateSuccess) {
-            JOptionPane.showMessageDialog(this, "업데이트 성공!");
-            refreshCurrentView();
-        } else {
-            JOptionPane.showMessageDialog(this, "업데이트 실패.", "오류", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private String getIdentifierForCurrentView(int selectedRow) {
-        return switch (currentViewMode) {
-            case "works_on", "dependent" -> (String) employeeTable.getValueAt(selectedRow, model.findColumn("Essn"));
-            case "project" -> (String) employeeTable.getValueAt(selectedRow, model.findColumn("Pnumber"));
-            default -> (String) employeeTable.getValueAt(selectedRow, model.findColumn("SSN"));
-        };
-    }
-
-    private void addRowSelectionListener() {
-        model.addTableModelListener(e -> updateSelectedCount());
-    }
-
-    private void updateSelectedCount() {
-        int selectedCount = 0;
-        for (int i = 0; i < model.getRowCount(); i++) {
-            if ((Boolean) model.getValueAt(i, 0)) {
-                selectedCount++;
-            }
-        }
-        selectedCountLabel.setText("선택한 직원: " + selectedCount + "명");
-    }
-
-    // 직원 정보 로드 메서드 (기본 EMPLOYEE 데이터를 표시)
+    // 직원 정보 로드 메서드
     private void loadEmployeeData() {
         model.setRowCount(0); // 테이블 초기화
 
@@ -321,24 +268,38 @@ public class Main extends JFrame {
         updateSelectedCount();
     }
 
-    // Works_On 테이블 데이터 표시 메서드
-        private void displayWorksOnData() {
-            model.setRowCount(0); // 테이블 초기화
-            String[] columns = {"선택", "Essn", "Pno", "Hours"};
-            model.setColumnIdentifiers(columns); // 컬럼 이름 설정
+    private void addRowSelectionListener() {
+        model.addTableModelListener(e -> updateSelectedCount());
+    }
 
-            List<Object[]> worksOnData = dbManage.getWorksOnData(); // DB에서 데이터 가져오기
-            if (worksOnData.isEmpty()) {
-                System.out.println("No data to display in the UI for Works_On table.");
-            } else {
-                for (Object[] rowData : worksOnData) {
-                    Object[] tableRow = new Object[columns.length];
-                    tableRow[0] = false; // 체크박스 기본값 false
-                    System.arraycopy(rowData, 0, tableRow, 1, rowData.length);
-                    model.addRow(tableRow);
-                }
+    private void updateSelectedCount() {
+        int selectedCount = 0;
+        for (int i = 0; i < model.getRowCount(); i++) {
+            if ((Boolean) model.getValueAt(i, 0)) {
+                selectedCount++;
             }
         }
+        selectedCountLabel.setText("선택한 직원: " + selectedCount + "명");
+    }
+
+    // Works_On 테이블 데이터 표시 메서드
+    private void displayWorksOnData() {
+        model.setRowCount(0); // 테이블 초기화
+        String[] columns = {"선택", "Essn", "Pno", "Hours"};
+        model.setColumnIdentifiers(columns); // 컬럼 이름 설정
+
+        List<Object[]> worksOnData = dbManage.getWorksOnData(); // DB에서 데이터 가져오기
+        if (worksOnData.isEmpty()) {
+            System.out.println("No data to display in the UI for Works_On table.");
+        } else {
+            for (Object[] rowData : worksOnData) {
+                Object[] tableRow = new Object[columns.length];
+                tableRow[0] = false; // 체크박스 기본값 false
+                System.arraycopy(rowData, 0, tableRow, 1, rowData.length);
+                model.addRow(tableRow);
+            }
+        }
+    }
 
     // Dependent 테이블 데이터 표시 메서드
     private void displayDependentData() {
@@ -380,5 +341,89 @@ public class Main extends JFrame {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new Main().setVisible(true));
+    }
+
+    // 직원 추가
+    private void showAddEmployeeDialog() {
+        JDialog dialog = new JDialog(this, "직원 추가", true);
+        dialog.setSize(400, 500);
+        dialog.setLayout(new GridLayout(11, 2, 5, 5));
+
+        // 입력 필드 생성
+        JTextField fnameField = new JTextField();
+        JTextField minitField = new JTextField();
+        JTextField lnameField = new JTextField();
+        JTextField ssnField = new JTextField();
+        JTextField bdateField = new JTextField();
+        JTextField addressField = new JTextField();
+        JComboBox<String> sexCombo = new JComboBox<>(new String[]{"F", "M"});
+        JTextField salaryField = new JTextField();
+        JTextField superSsnField = new JTextField();
+        JTextField dnoField = new JTextField();
+
+        // 필드 추가
+        dialog.add(new JLabel("First Name:"));
+        dialog.add(fnameField);
+        dialog.add(new JLabel("Middle Init.:"));
+        dialog.add(minitField);
+        dialog.add(new JLabel("Last Name:"));
+        dialog.add(lnameField);
+        dialog.add(new JLabel("Ssn:"));
+        dialog.add(ssnField);
+        dialog.add(new JLabel("Birthdate:"));
+        dialog.add(bdateField);
+        dialog.add(new JLabel("Address:"));
+        dialog.add(addressField);
+        dialog.add(new JLabel("Sex:"));
+        dialog.add(sexCombo);
+        dialog.add(new JLabel("Salary:"));
+        dialog.add(salaryField);
+        dialog.add(new JLabel("Super_ssn:"));
+        dialog.add(superSsnField);
+        dialog.add(new JLabel("Dno:"));
+        dialog.add(dnoField);
+
+        JButton addButton = new JButton("정보 추가하기");
+        dialog.add(addButton);
+
+        // "정보 추가하기" 버튼 동작
+        addButton.addActionListener(e -> {
+            String fname = fnameField.getText();
+            String minit = minitField.getText();
+            String lname = lnameField.getText();
+            String ssn = ssnField.getText();
+            String bdate = bdateField.getText();
+            String address = addressField.getText();
+            String sex = (String) sexCombo.getSelectedItem();
+            String salaryText = salaryField.getText();
+            String superSsn = superSsnField.getText().isEmpty() ? null: superSsnField.getText();
+            String dnoText = dnoField.getText();
+
+            // 데이터 검증
+            if (fname.isEmpty() || lname.isEmpty() || ssn.isEmpty() || bdate.isEmpty() || salaryText.isEmpty() || dnoText.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog, "모든 필수 정보를 입력하세요.", "오류", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            try {
+                double salary = Double.parseDouble(salaryText);
+                int dno = Integer.parseInt(dnoText);
+
+                // DBManage 데이터 삽입
+                boolean success = dbManage.addEmployee(fname, minit, lname, ssn, bdate, address, sex, salary, superSsn, dno);
+                if (success) {
+                    JOptionPane.showMessageDialog(dialog, "직원 정보가 추가되었습니다.");
+                    loadEmployeeData();
+                    dialog.dispose();
+                } else {
+                    JOptionPane.showMessageDialog(dialog, "직원 정보 추가에 실패하였습니다.", "오류", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dialog, "연봉 및 부서 번호는 숫자로 입력해야 합니다.", "오류", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
 }
