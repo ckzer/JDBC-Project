@@ -9,7 +9,7 @@ import java.util.List;
 public class DBManage {
     private static final String url = "jdbc:mysql://localhost:3306/mydb?serverTimeZone=UTC";
     private static final String user = "root";
-    private static final String password = "ckzeralpha2@";
+    private static final String password = "root";
 
     // 데이터베이스 연결을 생성하는 메서드
     public Connection getConnection() {
