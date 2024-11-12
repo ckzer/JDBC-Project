@@ -29,7 +29,10 @@ public class Main extends JFrame {
         // 검색 범위 설정
         JPanel searchRangePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         searchRangePanel.add(new JLabel("검색 범위"));
-        searchRangeBox = new JComboBox<>(new String[]{"전체", "부서", "성별", "연봉"});
+        searchRangeBox = new JComboBox<>(new String[]{
+                "All", "Department", "Gender", "Salary",
+                "Name", "SSN", "Birth Date", "Address", "Supervisor"
+        });
         searchRangePanel.add(searchRangeBox);
 
         // 부서 선택 콤보박스
@@ -43,16 +46,24 @@ public class Main extends JFrame {
         searchRangePanel.add(genderComboBox);
 
         // 연봉 입력 필드
-        searchValueField = new JTextField(10);
+        searchValueField = new JTextField(15);
         searchValueField.setVisible(false);
         searchRangePanel.add(searchValueField);
 
         // 검색 범위 변경 이벤트 리스너
         searchRangeBox.addActionListener(e -> {
             String selectedType = (String) searchRangeBox.getSelectedItem();
-            deptComboBox.setVisible(selectedType.equals("부서"));
-            genderComboBox.setVisible(selectedType.equals("성별"));
-            searchValueField.setVisible(selectedType.equals("연봉"));
+            deptComboBox.setVisible(selectedType.equals("Department"));
+            genderComboBox.setVisible(selectedType.equals("Gender"));
+            searchValueField.setVisible(!selectedType.equals("All") &&
+                    !selectedType.equals("Department") &&
+                    !selectedType.equals("Gender"));
+
+            if (selectedType.equals("Birth Date")) {
+                searchValueField.setToolTipText("YYYY-MM-DD 형태나 YYYY 형태로 입력해 주세요!");
+            } else if (selectedType.equals("SSN")) {
+                searchValueField.setToolTipText("9자리의 Ssn을 입력해 주세요!");
+            }
         });
 
         // 검색 항목 설정
@@ -124,11 +135,153 @@ public class Main extends JFrame {
         // 수정 및 삭제 기능 패널
         JPanel updatePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         updatePanel.add(new JLabel("수정:"));
-        JComboBox updateFieldBox = new JComboBox<>(new String[]{"Name", "SSN", "Bdate", "Address", "Sex", "Salary", "Supervisor", "Department"});
+
+// 수정할 필드 선택 콤보박스
+        JComboBox<String> updateFieldBox = new JComboBox<>(new String[]{
+                "Name", "SSN", "Birth Date", "Address", "Sex", "Salary", "Supervisor", "Department"
+        });
+
+// 수정할 값 입력 필드
         JTextField updateValueField = new JTextField(10);
-        JButton updateButton = new JButton("UPDATE");
+        updateValueField.setVisible(true);
+
+// Sex 선택 콤보박스
+        JComboBox<String> sexComboBox = new JComboBox<>(new String[]{"F", "M"});
+        sexComboBox.setVisible(false);
+
+// Supervisor 선택 콤보박스
+        JComboBox<String> supervisorComboBox = new JComboBox<>(new String[]{
+                "Franklin T Wong", "James E Borg", "Jennifer S Wallace", "NULL"
+        });
+        supervisorComboBox.setVisible(false);
+
+// Department 선택 콤보박스
+        JComboBox<String> departmentComboBox = new JComboBox<>(new String[]{
+                "Research", "Administration", "Headquarters"
+        });
+        departmentComboBox.setVisible(false);
+
+// 필드 선택에 따른 입력 컴포넌트 변경
+        updateFieldBox.addActionListener(e -> {
+            String selectedField = (String) updateFieldBox.getSelectedItem();
+            updateValueField.setVisible(true);
+            sexComboBox.setVisible(false);
+            supervisorComboBox.setVisible(false);
+            departmentComboBox.setVisible(false);
+
+            switch(selectedField) {
+                case "Sex":
+                    updateValueField.setVisible(false);
+                    sexComboBox.setVisible(true);
+                    break;
+                case "Supervisor":
+                    updateValueField.setVisible(false);
+                    supervisorComboBox.setVisible(true);
+                    break;
+                case "Department":
+                    updateValueField.setVisible(false);
+                    departmentComboBox.setVisible(true);
+                    break;
+                case "Birth Date":
+                    updateValueField.setToolTipText("YYYY-MM-DD 형식으로 입력하세요");
+                    break;
+                case "SSN":
+                    updateValueField.setToolTipText("9자리 숫자로 입력하세요");
+                    break;
+            }
+        });
+
         updatePanel.add(updateFieldBox);
         updatePanel.add(updateValueField);
+        updatePanel.add(sexComboBox);
+        updatePanel.add(supervisorComboBox);
+        updatePanel.add(departmentComboBox);
+
+        JButton updateButton = new JButton("UPDATE");
+        updateButton.addActionListener(e -> {
+            // 선택된 직원 확인
+            List<String> selectedSSNs = new ArrayList<>();
+            int selectedCount = 0;
+            String selectedSSN = null;
+
+            for (int i = 0; i < employeeTable.getRowCount(); i++) {
+                Boolean isChecked = (Boolean) employeeTable.getValueAt(i, 0);
+                if (isChecked != null && isChecked) {
+                    selectedCount++;
+                    int ssnColumnIndex = -1;
+                    for (int j = 0; j < employeeTable.getColumnCount(); j++) {
+                        if (employeeTable.getColumnName(j).equals("SSN")) {
+                            ssnColumnIndex = j;
+                            break;
+                        }
+                    }
+                    if (ssnColumnIndex != -1) {
+                        selectedSSN = (String) employeeTable.getValueAt(i, ssnColumnIndex);
+                        selectedSSNs.add(selectedSSN);
+                    }
+                }
+            }
+
+            if (selectedCount == 0) {
+                JOptionPane.showMessageDialog(this, "수정할 직원을 선택해주세요.", "알림", JOptionPane.WARNING_MESSAGE);
+                return;
+            } else if (selectedCount > 1) {
+                JOptionPane.showMessageDialog(this, "한 명의 직원만 선택해주세요.", "알림", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            String field = (String) updateFieldBox.getSelectedItem();
+            String value = "";
+
+            // 필드별로 적절한 값 가져오기
+            switch(field) {
+                case "Sex":
+                    value = (String) sexComboBox.getSelectedItem();
+                    break;
+                case "Supervisor":
+                    value = (String) supervisorComboBox.getSelectedItem();
+                    break;
+                case "Department":
+                    value = (String) departmentComboBox.getSelectedItem();
+                    break;
+                default:
+                    value = updateValueField.getText().trim();
+            }
+
+            if (value.isEmpty() && !field.equals("Supervisor")) {
+                JOptionPane.showMessageDialog(this, "수정할 값을 입력해주세요.", "알림", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // 필드별 입력값 검증
+            if (field.equals("SSN")) {
+                if (!value.matches("\\d{9}")) {
+                    JOptionPane.showMessageDialog(this, "SSN은 9자리 숫자로 입력해주세요.", "입력 오류", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            } else if (field.equals("Birth Date")) {
+                if (!value.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                    JOptionPane.showMessageDialog(this, "생년월일은 YYYY-MM-DD 형식으로 입력해주세요.", "입력 오류", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            } else if (field.equals("Salary")) {
+                try {
+                    Double.parseDouble(value);
+                } catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(this, "급여는 숫자만 입력 가능합니다.", "입력 오류", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            }
+
+            boolean success = dbManage.updateEmployee(selectedSSN, field, value);
+            if (success) {
+                JOptionPane.showMessageDialog(this, "직원 정보가 수정되었습니다.", "성공", JOptionPane.INFORMATION_MESSAGE);
+                loadEmployeeData();
+            } else {
+                JOptionPane.showMessageDialog(this, "직원 정보 수정에 실패했습니다.", "오류", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
         updatePanel.add(updateButton);
 
         // 삭제 버튼 패널
@@ -215,25 +368,47 @@ public class Main extends JFrame {
 
         // 검색 조건 추가
         String searchType = (String) searchRangeBox.getSelectedItem();
-        if (!searchType.equals("전체")) {
+        if (!searchType.equals("All")) {
             queryBuilder.append(" WHERE ");
             switch(searchType) {
-                case "부서":
+                case "Department":
                     queryBuilder.append("d.Dname = '").append(deptComboBox.getSelectedItem()).append("'");
                     break;
-                case "성별":
+                case "Gender":
                     queryBuilder.append("e.Sex = '").append(genderComboBox.getSelectedItem()).append("'");
                     break;
-                case "연봉":
+                case "Salary":
                     String salaryValue = searchValueField.getText().trim();
                     if (!salaryValue.isEmpty()) {
                         if (salaryValue.matches("\\d+(\\.\\d+)?")) {
                             queryBuilder.append("e.Salary >= ").append(salaryValue);
                         } else {
-                            JOptionPane.showMessageDialog(this, "연봉은 숫자만 입력 가능합니다.");
+                            JOptionPane.showMessageDialog(this, "급여는 숫자만 입력 가능합니다!", "입력 오류", JOptionPane.ERROR_MESSAGE);
                             return;
                         }
                     }
+                    break;
+                case "Name":
+                    queryBuilder.append("CONCAT(e.Fname, ' ', e.Minit, ' ', e.Lname) LIKE '%")
+                            .append(searchValueField.getText().trim()).append("%'");
+                    break;
+                case "SSN":
+                    queryBuilder.append("e.Ssn = '").append(searchValueField.getText().trim()).append("'");
+                    break;
+                case "Birth Date":
+                    String birthDate = searchValueField.getText().trim();
+                    if (birthDate.length() == 4) {  // 연도만 입력한 경우
+                        queryBuilder.append("YEAR(e.Bdate) = '").append(birthDate).append("'");
+                    } else {  // 전체 날짜를 입력한 경우
+                        queryBuilder.append("e.Bdate = '").append(birthDate).append("'");
+                    }
+                    break;
+                case "Address":
+                    queryBuilder.append("e.Address LIKE '%").append(searchValueField.getText().trim()).append("%'");
+                    break;
+                case "Supervisor":
+                    queryBuilder.append("CONCAT(s.Fname, ' ', s.Minit, ' ', s.Lname) LIKE '%")
+                            .append(searchValueField.getText().trim()).append("%'");
                     break;
             }
         }
@@ -401,7 +576,7 @@ public class Main extends JFrame {
 
             // 데이터 검증
             if (fname.isEmpty() || lname.isEmpty() || ssn.isEmpty() || bdate.isEmpty() || salaryText.isEmpty() || dnoText.isEmpty()) {
-                JOptionPane.showMessageDialog(dialog, "모든 필수 정보를 입력하세요.", "오류", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(dialog, "모든 필수 정보를 입력하세요.", "입력 오류", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
@@ -412,14 +587,14 @@ public class Main extends JFrame {
                 // DBManage 데이터 삽입
                 boolean success = dbManage.addEmployee(fname, minit, lname, ssn, bdate, address, sex, salary, superSsn, dno);
                 if (success) {
-                    JOptionPane.showMessageDialog(dialog, "직원 정보가 추가되었습니다.");
+                    JOptionPane.showMessageDialog(dialog, "직원 정보가 추가되었습니다.", "성공", JOptionPane.INFORMATION_MESSAGE);
                     loadEmployeeData();
                     dialog.dispose();
                 } else {
                     JOptionPane.showMessageDialog(dialog, "직원 정보 추가에 실패하였습니다.", "오류", JOptionPane.ERROR_MESSAGE);
                 }
             } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(dialog, "연봉 및 부서 번호는 숫자로 입력해야 합니다.", "오류", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(dialog, "연봉 및 부서 번호는 숫자로 입력해야 합니다.", "입력 오류", JOptionPane.ERROR_MESSAGE);
             }
         });
 

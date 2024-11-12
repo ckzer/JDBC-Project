@@ -34,7 +34,7 @@ public class DBManage {
     }
 
 
-    // 조건 검색을 위한 메서드 추가
+    // 조건 검색
     public ResultSet searchEmployeesByCondition(String searchType, String searchValue, ArrayList<String> selectedColumns) {
         StringBuilder queryBuilder = new StringBuilder();
         queryBuilder.append("SELECT ").append(String.join(", ", selectedColumns))
@@ -42,17 +42,32 @@ public class DBManage {
                 .append("JOIN DEPARTMENT d ON e.Dno = d.Dnumber ")
                 .append("LEFT JOIN EMPLOYEE s ON e.Super_ssn = s.Ssn ");
 
-        if (!searchType.equals("전체") && !searchValue.isEmpty()) {
+        if (!searchType.equals("All") && !searchValue.isEmpty()) {
             queryBuilder.append("WHERE ");
-            switch (searchType) {
-                case "부서":
+            switch(searchType) {
+                case "Department":
                     queryBuilder.append("d.Dname = ?");
                     break;
-                case "성별":
+                case "Gender":
                     queryBuilder.append("e.Sex = ?");
                     break;
-                case "연봉":
+                case "Salary":
                     queryBuilder.append("e.Salary >= ?");
+                    break;
+                case "Name":
+                    queryBuilder.append("CONCAT(e.Fname, ' ', e.Minit, ' ', e.Lname) LIKE ?");
+                    break;
+                case "SSN":
+                    queryBuilder.append("e.Ssn = ?");
+                    break;
+                case "Birth Date":
+                    queryBuilder.append("e.Bdate = ?");
+                    break;
+                case "Address":
+                    queryBuilder.append("e.Address LIKE ?");
+                    break;
+                case "Supervisor":
+                    queryBuilder.append("CONCAT(s.Fname, ' ', s.Minit, ' ', s.Lname) LIKE ?");
                     break;
             }
         }
@@ -61,9 +76,12 @@ public class DBManage {
             Connection conn = getConnection();
             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString());
 
-            if (!searchType.equals("전체") && !searchValue.isEmpty()) {
-                if (searchType.equals("연봉")) {
+            if (!searchType.equals("All") && !searchValue.isEmpty()) {
+                if (searchType.equals("Salary")) {
                     pstmt.setDouble(1, Double.parseDouble(searchValue));
+                } else if (searchType.equals("Name") || searchType.equals("Address") ||
+                        searchType.equals("Supervisor")) {
+                    pstmt.setString(1, "%" + searchValue + "%");
                 } else {
                     pstmt.setString(1, searchValue);
                 }
@@ -179,6 +197,88 @@ public class DBManage {
 
             int rowsAffected = pstmt.executeUpdate();
             return rowsAffected > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+
+    public boolean updateEmployeeName(String ssn, String fullName) {
+        String[] nameParts = fullName.split(" ");
+        if (nameParts.length != 3) {
+            return false;
+        }
+
+        String query = "UPDATE EMPLOYEE SET Fname = ?, Minit = ?, Lname = ? WHERE Ssn = ?";
+
+        try {
+            Connection conn = getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(query);
+            pstmt.setString(1, nameParts[0]); // Fname
+            pstmt.setString(2, nameParts[1]); // Minit
+            pstmt.setString(3, nameParts[2]); // Lname
+            pstmt.setString(4, ssn);
+
+            int result = pstmt.executeUpdate();
+            return result > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // 직원 정보 수정
+    public boolean updateEmployee(String ssn, String field, String value) {
+        String query = "";
+        try {
+            switch(field) {
+                case "Name":
+                    return updateEmployeeName(ssn, value);
+                case "SSN":
+                    query = "UPDATE EMPLOYEE SET Ssn = ? WHERE Ssn = ?";
+                    break;
+                case "Birth Date":
+                    query = "UPDATE EMPLOYEE SET Bdate = ? WHERE Ssn = ?";
+                    break;
+                case "Address":
+                    query = "UPDATE EMPLOYEE SET Address = ? WHERE Ssn = ?";
+                    break;
+                case "Sex":
+                    query = "UPDATE EMPLOYEE SET Sex = ? WHERE Ssn = ?";
+                    break;
+                case "Salary":
+                    query = "UPDATE EMPLOYEE SET Salary = ? WHERE Ssn = ?";
+                    break;
+                case "Supervisor":
+                    if (value.equals("NULL")) {
+                        query = "UPDATE EMPLOYEE SET Super_ssn = NULL WHERE Ssn = ?";
+                        Connection conn = getConnection();
+                        PreparedStatement pstmt = conn.prepareStatement(query);
+                        pstmt.setString(1, ssn);
+                        return pstmt.executeUpdate() > 0;
+                    } else {
+                        query = "UPDATE EMPLOYEE SET Super_ssn = (SELECT Ssn FROM (SELECT Ssn FROM EMPLOYEE WHERE CONCAT(Fname, ' ', Minit, ' ', Lname) = ?) AS temp) WHERE Ssn = ?";
+                    }
+                    break;
+                case "Department":
+                    query = "UPDATE EMPLOYEE SET Dno = (SELECT Dnumber FROM DEPARTMENT WHERE Dname = ?) WHERE Ssn = ?";
+                    break;
+                default:
+                    return false;
+            }
+
+            Connection conn = getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(query);
+
+            if (field.equals("Salary")) {
+                pstmt.setDouble(1, Double.parseDouble(value));
+            } else {
+                pstmt.setString(1, value);
+            }
+            pstmt.setString(2, ssn);
+
+            return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
