@@ -232,9 +232,10 @@ public class DBManage {
     public boolean updateEmployee(String ssn, String field, String value) {
         String query = "";
         try {
-            switch(field) {
+            // 필드에 따라 쿼리 결정
+            switch (field) {
                 case "Name":
-                    return updateEmployeeName(ssn, value);
+                    return updateEmployeeName(ssn, value); // full name 업데이트
                 case "SSN":
                     query = "UPDATE EMPLOYEE SET Ssn = ? WHERE Ssn = ?";
                     break;
@@ -253,37 +254,43 @@ public class DBManage {
                 case "Supervisor":
                     if (value.equals("NULL")) {
                         query = "UPDATE EMPLOYEE SET Super_ssn = NULL WHERE Ssn = ?";
-                        Connection conn = getConnection();
-                        PreparedStatement pstmt = conn.prepareStatement(query);
-                        pstmt.setString(1, ssn);
-                        return pstmt.executeUpdate() > 0;
                     } else {
-                        query = "UPDATE EMPLOYEE SET Super_ssn = (SELECT Ssn FROM (SELECT Ssn FROM EMPLOYEE WHERE CONCAT(Fname, ' ', Minit, ' ', Lname) = ?) AS temp) WHERE Ssn = ?";
+                        query = "UPDATE EMPLOYEE SET Super_ssn = (SELECT Ssn FROM EMPLOYEE WHERE CONCAT(Fname, ' ', Minit, ' ', Lname) = ?) WHERE Ssn = ?";
                     }
                     break;
                 case "Department":
                     query = "UPDATE EMPLOYEE SET Dno = (SELECT Dnumber FROM DEPARTMENT WHERE Dname = ?) WHERE Ssn = ?";
                     break;
                 default:
+                    System.out.println("Unknown field for update: " + field);
                     return false;
             }
 
-            Connection conn = getConnection();
-            PreparedStatement pstmt = conn.prepareStatement(query);
+            // 디버깅 출력
+            System.out.println("Executing query: " + query);
+            System.out.println("Parameters: Value - " + value + ", SSN - " + ssn);
 
-            if (field.equals("Salary")) {
-                pstmt.setDouble(1, Double.parseDouble(value));
-            } else {
-                pstmt.setString(1, value);
+            try (Connection conn = getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(query)) {
+
+                // 파라미터 설정
+                if (field.equals("Salary")) {
+                    pstmt.setDouble(1, Double.parseDouble(value));
+                } else {
+                    pstmt.setString(1, value);
+                }
+                pstmt.setString(2, ssn);
+
+                int rowsAffected = pstmt.executeUpdate();
+                System.out.println("Rows affected: " + rowsAffected); // 디버깅 출력
+                return rowsAffected > 0;
             }
-            pstmt.setString(2, ssn);
-
-            return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
         }
     }
+
 
     // Works_On 테이블 데이터를 List<Object[]> 형식으로 반환하는 메서드
     public List<Object[]> getWorksOnData() {
@@ -364,5 +371,67 @@ public class DBManage {
             e.printStackTrace();
         }
         return worksOnData;
+    }
+
+    // WORKS_ON 테이블을 업데이트하는 메서드
+    public boolean updateWorksOn(String essn, String pno, String field, String newValue) {
+        String query = "UPDATE WORKS_ON SET " + field + " = ? WHERE Essn = ? AND Pno = ?";
+        try (Connection connection = getConnection();
+             PreparedStatement stmt = connection.prepareStatement(query)) {
+            System.out.println("Attempting to update WORKS_ON table...");
+            System.out.println("Query: " + query);
+            System.out.println("Parameters: field = " + field + ", newValue = " + newValue + ", essn = " + essn + ", pno = " + pno);
+
+            stmt.setString(1, newValue);
+            stmt.setString(2, essn);
+            stmt.setString(3, pno);
+            int rowsAffected = stmt.executeUpdate();
+            System.out.println("Rows affected: " + rowsAffected); // 디버깅 출력
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // DEPENDENT 테이블을 업데이트하는 메서드
+    public boolean updateDependent(String essn, String dependentName, String field, String newValue) {
+        String query = "UPDATE DEPENDENT SET " + field + " = ? WHERE Essn = ? AND Dependent_name = ?";
+        try (Connection connection = getConnection();
+             PreparedStatement stmt = connection.prepareStatement(query)) {
+            System.out.println("Attempting to update DEPENDENT table...");
+            System.out.println("Query: " + query);
+            System.out.println("Parameters: field = " + field + ", newValue = " + newValue + ", essn = " + essn + ", dependentName = " + dependentName);
+
+            stmt.setString(1, newValue);
+            stmt.setString(2, essn);
+            stmt.setString(3, dependentName);
+            int rowsAffected = stmt.executeUpdate();
+            System.out.println("Rows affected: " + rowsAffected); // 디버깅 출력
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // PROJECT 테이블을 업데이트하는 메서드
+    public boolean updateProject(String pnumber, String field, String newValue) {
+        String query = "UPDATE PROJECT SET " + field + " = ? WHERE Pnumber = ?";
+        try (Connection connection = getConnection();
+             PreparedStatement stmt = connection.prepareStatement(query)) {
+            System.out.println("Attempting to update PROJECT table...");
+            System.out.println("Query: " + query);
+            System.out.println("Parameters: field = " + field + ", newValue = " + newValue + ", pnumber = " + pnumber);
+
+            stmt.setString(1, newValue);
+            stmt.setString(2, pnumber);
+            int rowsAffected = stmt.executeUpdate();
+            System.out.println("Rows affected: " + rowsAffected); // 디버깅 출력
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 }
